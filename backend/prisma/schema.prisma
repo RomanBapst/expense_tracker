@@ -1,0 +1,55 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model employee {
+  id           Int        @id @default(autoincrement())
+  name         String     @db.VarChar(128)
+  surname      String     @db.VarChar(128)
+  salary       Float      @db.Real
+  department   Department? @relation(fields: [departmentId], references: [id], onUpdate: Restrict, onDelete: Restrict)
+  departmentId Int?
+}
+
+model Department {
+  id       Int        @id @default(autoincrement())
+  name     String     @db.VarChar(128)
+  Employee employee[]
+}
+
+model Expense {
+  id  Int @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  title String
+  comment String?
+  amount Float @db.Real @default(0)
+  author User @relation(fields: [authorId], references: [id])
+  authorId Int
+  receiptFilename String?
+  receiptPath    String?
+  archived Boolean @default(false)
+  account ExpenseAccount? @relation(fields: [accountId], references: [id])
+  accountId Int?
+}
+
+model ExpenseAccount {
+  id  Int @id @default(autoincrement())
+  name String
+  refundUser User? @relation(fields: [refundUserId], references: [id])
+  refundUserId Int?
+  expenses Expense[]
+}
+
+model User {
+  id      Int      @id @default(autoincrement())
+  email   String   @unique
+  name    String?
+  expenses Expense[]
+  expenseAccounts ExpenseAccount[]
+}
