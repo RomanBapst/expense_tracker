@@ -19,7 +19,7 @@ services:
     depends_on:
       - db
     ports:
-      - 8086:8085
+      - 8085:8085
     volumes:
     - ./uploads:/home/node/app/uploads
   frontend:
