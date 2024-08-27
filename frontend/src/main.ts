@@ -30,7 +30,7 @@ const routes = [
 // keep it simple for now.
 const router = createRouter({
   // 4. Provide the history implementation to use. We are using the hash history for simplicity here.
-  history: createWebHistory(),
+  history: createWebHistory(process.env.VUE_APP_LOCAL_PATH),
   routes, // short for `routes: routes`
 })
 
