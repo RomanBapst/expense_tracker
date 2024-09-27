@@ -48,7 +48,7 @@ const options: cors.CorsOptions = {
   ],
   credentials: true,
   methods: 'GET,HEAD,OPTIONS,PUT,PATCH,POST,DELETE',
-  origin: ["http://localhost:8080", "http://localhost"],
+  origin: ["http://localhost:" + process.env.FRONTEND_PORT ],
   preflightContinue: false,
 };
 
@@ -425,7 +425,7 @@ app.get('/isAdmin', async (req, res) => {
 
 
 
-const server = app.listen(8085, () =>
+const server = app.listen(80, () =>
   console.log(`
-🚀 Server ready at: http://localhost:8085`),
+🚀 Server ready at: http://localhost:80`),
 )

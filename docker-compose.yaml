@@ -8,18 +8,20 @@ services:
     - POSTGRES_USER=${POSTGRES_USER}
     - POSTGRES_DB=${POSTGRES_DB}
     ports:
-      - 5437:5432
+      - "${POSTGRES_PORT}:5432"
     volumes:
     - ./postgres-data:/var/lib/postgresql/data
   server:
     build:
       context: ./backend
     env_file: ./backend/.env
+    environment:
+      - FRONTEND_PORT=${FRONTEND_PORT}
     user: "node:node"
     depends_on:
       - db
     ports:
-      - 8085:8085
+      - "${BACKEND_PORT}:80"
     volumes:
     - ./uploads:/home/node/app/uploads
   frontend:
@@ -27,4 +29,4 @@ services:
       context: ./frontend
     env_file: ./frontend/.env.production.local
     ports:
-      - 8080:80
+      - "${FRONTEND_PORT}:80"
