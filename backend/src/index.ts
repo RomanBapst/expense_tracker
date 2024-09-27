@@ -245,17 +245,21 @@ app.put('/expenses/:id', upload.single('receipt'), async (req, res) => {
     }
   });
 
-  const { title, description, amount, date, archived, removeReceipt } = req.body
+  const { title, description, amount, date, archived, removeReceipt} = req.body
 
   let expenseData: any = {
     title: title,
     comment: description,
     amount: parseFloat(amount),
     createdAt: new Date(date),
-    account: {
-      connect: { id: Number(req.body.expenseAccount) }
-    }
   };
+
+    const expenseAccountId = Number(req.body.expenseAccount);
+    if (!isNaN(expenseAccountId)) {
+      expenseData.account = {
+        connect: { id: expenseAccountId }
+      };
+    }
 
   if (archived !== undefined) {
     expenseData.archived = archived.toLowerCase() === 'true'
