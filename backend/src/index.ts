@@ -292,7 +292,7 @@ app.put('/expenses/:id', upload.single('receipt'), async (req, res) => {
 
   const user = await prisma.expense.update({
     where: {
-      id
+      id : id
     },
     data: expenseData
   })
