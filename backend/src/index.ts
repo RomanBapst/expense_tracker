@@ -389,7 +389,7 @@ app.get('/account', async (req, res) => {
   })
 })
 
-app.post('/account', async (req, res) => {
+app.post('/account', upload.single(''), async (req, res) => {
   try {
     console.log("Headers:", req.headers);   // Log the request headers
     console.log("Body:", req.body);         // Lo
