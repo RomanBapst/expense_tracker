@@ -401,11 +401,7 @@ app.post('/account', upload.single(''), async (req, res) => {
     console.log(refundUserId)
 
     if (refundUserId) {
-      accountData.refundUserId = {
-        connect: {
-          id: Number(refundUserId)
-        }
-      };
+      accountData.refundUserId = Number(refundUserId);
     }
 
     const account = await prisma.expenseAccount.create({
