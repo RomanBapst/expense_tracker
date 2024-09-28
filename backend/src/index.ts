@@ -391,7 +391,8 @@ app.get('/account', async (req, res) => {
 
 app.post('/account', async (req, res) => {
   try {
-    console.log(req.body)
+    console.log("Headers:", req.headers);   // Log the request headers
+    console.log("Body:", req.body);         // Lo
     const { title, refundUserId } = req.body;
     const accountData : any = { };
 
