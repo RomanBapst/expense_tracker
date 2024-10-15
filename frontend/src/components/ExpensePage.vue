@@ -18,6 +18,7 @@
     v-model:date="date"
     v-model:accountId="expenseAccount"
     :hasExistingReceipt="hasExistingReceipt"
+    :isAdding="isAdding"
     :accountTypes="accounts"
     :removeExistingReceipt="removeExistingReceipt"
     :file="file"

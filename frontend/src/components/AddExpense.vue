@@ -1,7 +1,8 @@
 <template>
   <div class="input-form bg-white p-6 rounded-lg shadow-md max-w-lg mx-auto relative">
     <span class="close absolute top-2 right-2 cursor-pointer text-gray-500 hover:text-gray-800" @click="$emit('close')">&times;</span>
-    <h2 class="text-2xl font-bold mb-4">Add Expense</h2>
+    <h2 v-if="props.isAdding" class="text-2xl font-bold mb-4">Add Expense</h2>
+    <h2 v-if="!props.isAdding" class="text-2xl font-bold mb-4">Edit Expense</h2>
     <div class="mb-4">
       <label for="accountType" class="block text-sm font-medium text-gray-700">Account Type</label>
       <select id="accountModel" v-model="accountModel" class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
@@ -85,6 +86,7 @@ const accountModel = defineModel<string>("accountId", {default: ""})
 
 const props = defineProps({
   hasExistingReceipt: Boolean,
+  isAdding: Boolean,
   accountTypes: Array
 });
 
