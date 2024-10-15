@@ -48,13 +48,12 @@ const options: cors.CorsOptions = {
   ],
   credentials: true,
   methods: 'GET,HEAD,OPTIONS,PUT,PATCH,POST,DELETE',
-  origin: ["http://localhost:" + process.env.FRONTEND_PORT ],
+  origin: ["http://localhost:" + process.env.FRONTEND_PORT, "http://localhost"],
   preflightContinue: false,
 };
 
 //use cors middleware
 app.use(cors(options));
-
 
 app.use(express.json())
 app.use(
