@@ -107,19 +107,3 @@ const handleFileChange = (event: Event) => {
 
 </script>
 
-<style scoped>
-.input-form {
-  max-width: 600px;
-  margin: 2rem auto;
-  background-color: #ffffff;
-  padding: 2rem;
-  border-radius: 0.5rem;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-
-.close {
-  font-size: 1.5rem;
-  font-weight: bold;
-}
-</style>
-

@@ -2,71 +2,72 @@
   <NavigationBar />
   <div class="container mx-auto mt-8">
     <fwb-heading tag="h1" class="text-blue-400 mb-6 text-2xl font-bold"
-      >Expense Tracker</fwb-heading
+    >Expense Tracker</fwb-heading
     >
     <!-- Updated title style -->
-
-    <div v-if="isAdmin" class="flex justify-between mb-4">
-      <fwb-button @click="showAddExpenseForm">Add New Expense</fwb-button>
-      <input
+    
+    
+    <!-- AddExpense Component: Conditionally Rendered -->
+    
+    <Spinner v-if="isUploading" />
+    <AddExpense
+    v-if="(isEditing || isAdding) && !isUploading"
+    v-model:title="title"
+    v-model:description="description"
+    v-model:amount="amount"
+    v-model:date="date"
+    v-model:accountId="expenseAccount"
+    :hasExistingReceipt="hasExistingReceipt"
+    :accountTypes="accounts"
+    :removeExistingReceipt="removeExistingReceipt"
+    :file="file"
+    @close="closeAddExpenseDialog"
+    @submitClicked="handleAddExpense"
+    />
+    
+    <Spinner v-if="isLoading" />
+    
+    
+    <div v-if="!isEditing && !isAdding">
+      <div v-if="isAdmin" class="flex justify-between mb-4">
+        <fwb-button @click="showAddExpenseForm">Add New Expense</fwb-button>
+        <input
         type="text"
         v-model="searchQuery"
         placeholder="Search expenses..."
         class="border rounded p-2"
-      />
-    </div>
-
-    <!-- AddExpense Component: Conditionally Rendered -->
-
-    <Spinner v-if="isUploading" />
-    <AddExpense
-      v-if="(isEditing || isAdding) && !isUploading"
-      v-model:title="title"
-      v-model:description="description"
-      v-model:amount="amount"
-      v-model:date="date"
-      v-model:accountId="expenseAccount"
-      :hasExistingReceipt="hasExistingReceipt"
-      :accountTypes="accounts"
-      :removeExistingReceipt="removeExistingReceipt"
-      :file="file"
-      @close="closeAddExpenseDialog"
-      @submitClicked="handleAddExpense"
-    />
-
-    <Spinner v-if="isLoading" />
-
-    <div class="tabs mb-4">
-      <button @click="activeTab = 'tab1'" :class="{ active: activeTab === 'tab1' }">
-        Open Expenses
-      </button>
-      <button @click="activeTab = 'tab2'" :class="{ active: activeTab === 'tab2' }">
-        Archived Expenses
-      </button>
-    </div>
-
-    <SimpleTable
+        />
+      </div>
+      <div class="tabs mb-4">
+        <button @click="activeTab = 'tab1'" :class="{ active: activeTab === 'tab1' }">
+          Open Expenses
+        </button>
+        <button @click="activeTab = 'tab2'" :class="{ active: activeTab === 'tab2' }">
+          Archived Expenses
+        </button>
+      </div>
+      <SimpleTable
       v-if="activeTab === 'tab1' && !isLoading"
       :header="[
-        'ID',
-        'Author',
-        'Date',
-        'Title',
-        'Description',
-        'Amount',
-        'Receipt',
-        'Actions',
+      'ID',
+      'Author',
+      'Date',
+      'Title',
+      'Description',
+      'Amount',
+      'Receipt',
+      'Actions',
       ]"
       :items="filteredExpenses"
       :sortFunction="sortByColumn"
       @receiptClicked="openReceipt"
-    >
+      >
       <template #cell-6="{ item }">
         <span
-          v-if="item.receipt"
-          class="cursor-pointer text-blue-500"
-          @click="openReceipt(item.id)"
-          >📎</span
+        v-if="item.receipt"
+        class="cursor-pointer text-blue-500"
+        @click="openReceipt(item.id)"
+        >📎</span
         >
       </template>
       <template #button1="{item}">
@@ -80,37 +81,37 @@
         </fwb-button>
       </template>
     </SimpleTable>
-
     <SimpleTable
-      v-if="activeTab === 'tab2' && !isLoading"
-      :header="[
-        'ID',
-        'Author',
-        'Date',
-        'Title',
-        'Description',
-        'Amount',
-        'Receipt',
-        'Actions',
-      ]"
-      :items="prepareArchivedExpenses()"
-      :sortFunction="sortByColumn"
+    v-if="activeTab === 'tab2' && !isLoading"
+    :header="[
+    'ID',
+    'Author',
+    'Date',
+    'Title',
+    'Description',
+    'Amount',
+    'Receipt',
+    'Actions',
+    ]"
+    :items="prepareArchivedExpenses()"
+    :sortFunction="sortByColumn"
     >
-      <template #cell-6="{ item }">
-        <span
-          v-if="item.receipt"
-          class="cursor-pointer text-blue-500"
-          @click="openReceipt(item.id)"
-          >📎</span
-        >
-      </template>
-      <template #button1="{item}">
-        .<fwb-button @click="restoreExpense(item.id)" class="bg-blue-700">
-          Restore
-        </fwb-button>
-      </template>
-    </SimpleTable>
-  </div>
+    <template #cell-6="{ item }">
+      <span
+      v-if="item.receipt"
+      class="cursor-pointer text-blue-500"
+      @click="openReceipt(item.id)"
+      >📎</span
+      >
+    </template>
+    <template #button1="{item}">
+      .<fwb-button @click="restoreExpense(item.id)" class="bg-blue-700">
+        Restore
+      </fwb-button>
+    </template>
+  </SimpleTable>
+</div>
+</div>
 </template>
 
 <script setup lang="ts">
@@ -161,19 +162,19 @@ enum ColumnType {
 }
 
 const columns = [
-  { key: "id", label: "ID", colType: ColumnType.DEFAULT },
-  { key: "author", label: "Author", colType: ColumnType.DEFAULT },
-  { key: "date", label: "Date", colType: ColumnType.DATE },
-  { key: "title", label: "Title", colType: ColumnType.DEFAULT },
-  { key: "description", label: "Description", colType: ColumnType.DEFAULT },
-  { key: "amount", label: "Amount", colType: ColumnType.FLOAT },
-  {
-    key: "receipt",
-    colType: ColumnType.DEFAULT,
-    label: "Receipt",
-    render: (receiptPath: string) =>
-      receiptPath ? `<a href="${receiptPath}" target="_blank">📎</a>` : "",
-  },
+{ key: "id", label: "ID", colType: ColumnType.DEFAULT },
+{ key: "author", label: "Author", colType: ColumnType.DEFAULT },
+{ key: "date", label: "Date", colType: ColumnType.DATE },
+{ key: "title", label: "Title", colType: ColumnType.DEFAULT },
+{ key: "description", label: "Description", colType: ColumnType.DEFAULT },
+{ key: "amount", label: "Amount", colType: ColumnType.FLOAT },
+{
+  key: "receipt",
+  colType: ColumnType.DEFAULT,
+  label: "Receipt",
+  render: (receiptPath: string) =>
+  receiptPath ? `<a href="${receiptPath}" target="_blank">📎</a>` : "",
+},
 ];
 
 const baseUrl = process.env.VUE_APP_API_ADDR + "/expenses";
@@ -185,56 +186,56 @@ function closeAddExpenseDialog() {
 
 const filteredExpenses = computed(() => {
   return prepareExpenses()
-    .filter((expense) => {
-      return (
-        expense.title.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-        (expense.comment &&
-          expense.comment.toLowerCase().includes(searchQuery.value.toLowerCase())) ||
-        String(expense.id).includes(searchQuery.value.toLowerCase())
-      );
-    })
-    .map((el) => ({
-      id: el.id,
-      values: [
-        el.id,
-        el.author.name,
-        convertDate(el.createdAt),
-        el.title,
-        el.comment,
-        Number(el.amount).toLocaleString(),
-        el.receiptPath,
-      ],
-      receipt: el.receiptPath,
-    }));
+  .filter((expense) => {
+    return (
+    expense.title.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
+    (expense.comment &&
+    expense.comment.toLowerCase().includes(searchQuery.value.toLowerCase())) ||
+    String(expense.id).includes(searchQuery.value.toLowerCase())
+    );
+  })
+  .map((el) => ({
+    id: el.id,
+    values: [
+    el.id,
+    el.author.name,
+    convertDate(el.createdAt),
+    el.title,
+    el.comment,
+    Number(el.amount).toLocaleString(),
+    el.receiptPath,
+    ],
+    receipt: el.receiptPath,
+  }));
 });
 
 async function archiveExpense(id: number) {
-
+  
   if (isAdding.value || isEditing.value) {
     return;
   }
-
+  
   try {
     const expense = expenses.value.find((el) => {
       return el.id === id;
     });
-
+    
     if (expense == undefined) {
       throw new Error("Failed to find expense");
     }
-
+    
     const formData = new FormData();
     formData.append("title", expense.title);
     formData.append("description", expense.comment);
     formData.append("amount", expense.amount);
     formData.append("date", expense.createdAt);
     formData.append("archived", "true");
-
+    
     // Append file if it exists
     if (file.value) {
       formData.append("receipt", file.value);
     }
-
+    
     editExpense(id, formData);
   } catch (err) {
     console.log(err);
@@ -245,7 +246,7 @@ function sortByColumn(index: number, sortDirection: string, sortedItems) {
   return sortedItems.sort((a, b) => {
     let aValue = a.values[index];
     let bValue = b.values[index];
-
+    
     if (columns[index].colType == ColumnType.DATE) {
       aValue = new Date(aValue);
       bValue = new Date(bValue);
@@ -253,7 +254,7 @@ function sortByColumn(index: number, sortDirection: string, sortedItems) {
       aValue = parseFloat(a.values[index].replaceAll(",", ""));
       bValue = parseFloat(b.values[index].replaceAll(",", ""));
     }
-
+    
     if (sortDirection === "asc") {
       return aValue > bValue ? 1 : -1;
     } else {
@@ -268,11 +269,11 @@ async function openReceipt(receipt: string) {
     const response = await fetch(`${baseUrl}/${receipt}/file`, {
       headers: { Authorization: `Bearer ${token}` },
     });
-
+    
     if (!response.ok) {
       throw new Error("Failed to fetch receipt");
     }
-
+    
     const blob = await response.blob();
     const url = URL.createObjectURL(blob);
     window.open(url, "_blank");
@@ -289,20 +290,20 @@ const handleAddExpense = (fileData: File | null, removeOldReceipt: Boolean = fal
   formData.append("amount", parseFloat(amount.value));
   formData.append("date", new Date(date.value).toISOString().split("T")[0]);
   formData.append("expenseAccount",  parseInt(expenseAccount.value))
-
-
+  
+  
   console.log(expenseAccount.value)
-
+  
   // Append file if it exists
   if (file.value) {
     formData.append("receipt", file.value);
   }
-
+  
   if (isEditing.value && editedExpenseId.value) {
     if (removeOldReceipt) {
       formData.append("removeReceipt", "true");
     }
-
+    
     editExpense(editedExpenseId.value, formData);
   } else if (isAdding.value) {
     addExpense(formData);
@@ -333,46 +334,46 @@ function prepareExpenses() {
 
 function prepareArchivedExpenses() {
   return expenses.value
-    .filter((el) => {
-      return el.archived;
-    })
-    .map((el) => ({
-      id: el.id,
-      values: [
-        el.id,
-        el.author.name,
-        convertDate(el.createdAt),
-        el.title,
-        el.comment,
-        Number(el.amount).toLocaleString(),
-        el.receiptPath,
-      ],
-      receipt: el.receiptPath,
-    }));
+  .filter((el) => {
+    return el.archived;
+  })
+  .map((el) => ({
+    id: el.id,
+    values: [
+    el.id,
+    el.author.name,
+    convertDate(el.createdAt),
+    el.title,
+    el.comment,
+    Number(el.amount).toLocaleString(),
+    el.receiptPath,
+    ],
+    receipt: el.receiptPath,
+  }));
 }
 
 async function editExpense(id: number, formData: FormData) {
   try {
     isUploading.value = true;
     const token = await auth0.getAccessTokenSilently();
-
+    
     const requestOptions = {
       headers: {
         Authorization: `Bearer ${token}`,
       },
       body: formData,
     };
-
+    
     const response = await fetch(baseUrl + `/${id}`, {
       ...requestOptions,
       method: "PUT",
     });
-
+    
     if (!response.ok) {
       const errorData = await response.json();
       throw new Error(`Error: ${response.status} - ${errorData.message}`);
     }
-
+    
     await getAllExpenses();
   } catch (err) {
     console.error(`Failed to edit expense:`, err.message);
@@ -386,24 +387,24 @@ async function addExpense(formData: FormData) {
   try {
     isUploading.value = true;
     const token = await auth0.getAccessTokenSilently();
-
+    
     const requestOptions = {
       headers: {
         Authorization: `Bearer ${token}`,
       },
       body: formData,
     };
-
+    
     const response = await fetch(baseUrl, {
       ...requestOptions,
       method: "POST",
     });
-
+    
     if (!response.ok) {
       const errorData = await response.json();
       throw new Error(`Error: ${response.status} - ${errorData.message}`);
     }
-
+    
     resetForm();
     await getAllExpenses();
   } catch (err: any) {
@@ -427,18 +428,18 @@ async function restoreExpense(id: number) {
     let expense: Expense | undefined = expenses.value.find((el) => {
       return el.id === id;
     });
-
+    
     if (!expense) {
       throw new Error(`Error: Cannot restore Expense with id ${id}, id not found!`);
     }
-
+    
     const formData = new FormData();
     formData.append("title", expense.title);
     formData.append("description", expense.comment);
     formData.append("amount", expense.amount);
     formData.append("date", expense.createdAt);
     formData.append("archived", "false");
-
+    
     editExpense(id, formData);
   } catch (err) {
     console.error("Failed to restore expense: ", err.message);
@@ -452,15 +453,15 @@ async function deleteExpense(id: Number) {
       method: "DELETE",
       headers: { Authorization: "Bearer " + token },
     };
-
+    
     const uri = baseUrl + `/${id}`;
-
+    
     const response = await fetch(uri, requestOptions);
     if (!response.ok) {
       const errorData = await response.json();
       throw new Error(`Error: ${response.status} - ${errorData.message}`);
     }
-
+    
     await getAllExpenses();
   } catch (err) {
     console.error("Failed to delete expense:", err.message);
@@ -473,16 +474,16 @@ async function getAllExpenses() {
     const token = await auth0.getAccessTokenSilently().catch(() => {
       auth0.loginWithRedirect();
     });
-
+    
     const response = await fetch(baseUrl, {
       headers: { Authorization: "Bearer " + token },
     });
-
+    
     if (!response.ok) {
       const errorData = await response.json();
       throw new Error(`Error: ${response.status} - ${errorData.message}`);
     }
-
+    
     const data = await response.json();
     expenses.value = data;
   } catch (err) {
@@ -498,18 +499,18 @@ async function getAllAccounts() {
     const token = await auth0.getAccessTokenSilently().catch(() => {
       auth0.loginWithRedirect();
     });
-
+    
     const baseUrl = process.env.VUE_APP_API_ADDR + "/account";
-
+    
     const response = await fetch(baseUrl, {
       headers: { Authorization: "Bearer " + token },
     });
-
+    
     if (!response.ok) {
       const errorData = await response.json();
       throw new Error(`Error: ${response.status} - ${errorData.message}`);
     }
-
+    
     const data = await response.json();
     accounts.value = data;
   } catch (err) {
@@ -523,7 +524,7 @@ async function handleEditExpense(id: number) {
   if (isAdding.value || isEditing.value) {
     return;
   }
-
+  
   const expense = expenses.value.find((exp) => exp.id === id);
   if (expense !== undefined) {
     editedExpenseId.value = id;
