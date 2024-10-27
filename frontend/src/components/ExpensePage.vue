@@ -2,7 +2,7 @@
   <NavigationBar />
   <div class="container mx-auto mt-8">
     <fwb-heading tag="h1" class="text-blue-400 mb-6 text-2xl font-bold"
-    >Expense Tracker</fwb-heading
+    >Expense Tracker ({{ gitHash }})</fwb-heading
     >
     <!-- Updated title style -->
     
@@ -126,6 +126,8 @@ import { FwbButton } from "flowbite-vue"; // Add this import statement
 import { exp, number } from "mathjs";
 
 import {isAdmin, getIsAdmin} from "@/utils/authUtils" 
+
+const gitHash = process.env.VUE_APP_GIT_HASH || ''
 
 const auth0 = useAuth0();
 const expenses = ref<Expense[]>([]);
