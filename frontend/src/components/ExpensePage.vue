@@ -2,7 +2,7 @@
   <NavigationBar />
   <div class="container mx-auto mt-8">
     <fwb-heading tag="h1" class="text-blue-400 mb-6 text-2xl font-bold"
-    >Expense Tracker ({{ gitHash }})</fwb-heading
+    >Expense Tracker Version: ({{ gitHash }})</fwb-heading
     >
     <!-- Updated title style -->
     
