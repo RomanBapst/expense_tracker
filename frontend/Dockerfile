@@ -6,7 +6,6 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install
 COPY . .
-RUN rm -r ./dist
 RUN npm run build
 
 # production stage
