@@ -9,6 +9,7 @@ export interface Expense {
     archived: boolean
     author : Author
     accountId: Number
+    account: Account | undefined
   }
 
 export interface Author {

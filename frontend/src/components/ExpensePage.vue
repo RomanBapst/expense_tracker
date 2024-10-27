@@ -50,7 +50,7 @@
       <SimpleTable
       v-if="activeTab === 'tab1' && !isLoading"
       :header="[
-      'ID',
+      'Account',
       'Author',
       'Date',
       'Title',
@@ -61,7 +61,6 @@
       ]"
       :items="filteredExpenses"
       :sortFunction="sortByColumn"
-      @receiptClicked="openReceipt"
       >
       <template #cell-6="{ item }">
         <span
@@ -85,7 +84,7 @@
     <SimpleTable
     v-if="activeTab === 'tab2' && !isLoading"
     :header="[
-    'ID',
+    'Account',
     'Author',
     'Date',
     'Title',
@@ -124,7 +123,7 @@ import { ref, onMounted, computed } from "vue";
 import { useAuth0 } from "@auth0/auth0-vue";
 import { Expense, Account } from "@/expenses/expenses";
 import { FwbButton } from "flowbite-vue"; // Add this import statement
-import { exp } from "mathjs";
+import { exp, number } from "mathjs";
 
 import {isAdmin, getIsAdmin} from "@/utils/authUtils" 
 
@@ -163,7 +162,7 @@ enum ColumnType {
 }
 
 const columns = [
-{ key: "id", label: "ID", colType: ColumnType.DEFAULT },
+{ key: "account", label: "Account", colType: ColumnType.DEFAULT },
 { key: "author", label: "Author", colType: ColumnType.DEFAULT },
 { key: "date", label: "Date", colType: ColumnType.DATE },
 { key: "title", label: "Title", colType: ColumnType.DEFAULT },
@@ -198,7 +197,7 @@ const filteredExpenses = computed(() => {
   .map((el) => ({
     id: el.id,
     values: [
-    el.id,
+    el.account?.name,
     el.author.name,
     convertDate(el.createdAt),
     el.title,
@@ -243,7 +242,12 @@ async function archiveExpense(id: number) {
   }
 }
 
-function sortByColumn(index: number, sortDirection: string, sortedItems) {
+function sortByColumn(index: number, sortDirection: string, sortedItems: Array<any>) {
+
+  if (index >= columns.length) {
+    return sortedItems;
+  }
+
   return sortedItems.sort((a, b) => {
     let aValue = a.values[index];
     let bValue = b.values[index];
@@ -341,7 +345,7 @@ function prepareArchivedExpenses() {
   .map((el) => ({
     id: el.id,
     values: [
-    el.id,
+    el.account?.name,
     el.author.name,
     convertDate(el.createdAt),
     el.title,

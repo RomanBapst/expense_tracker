@@ -12,13 +12,12 @@
     <!-- User Selection Popup -->
     <div v-if="isRefund" class="mb-4">
       <label for="userSelect" class="block text-sm font-medium text-gray-700 mb-2">Select User</label>
-      <select id="userSelect" v-model="selectedUser" class="block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-        <option v-for="user in props.users" :key="user.id" :value="user.id">
+      <select id="selectedUser" v-model="selectedUserId" class="block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+        <option v-for="user in props.users" :key="user.name" :value="user.id">
           {{ user.name }}
         </option>
       </select>
     </div>
-
 
     <div class="mb-4">
       <fwb-input
@@ -44,40 +43,29 @@
 </template>
 
 <script setup lang="ts">
-import { defineModel, defineProps, defineEmits, ref } from "vue";
+import { defineProps, defineEmits, ref, defineModel } from "vue";
 import { FwbInput, FwbButton } from "flowbite-vue";
 
-const emits = defineEmits(["submitClicked"]);
 
-const props = defineProps({
-  users: Array
-})
+const emit = defineEmits(['submitClicked']);
 
 const nameModel = defineModel("name", { default: "" });
 const accountType = ref("Cash");
-const isRefund = ref(false);
-const selectedUser = ref(null)
+const isRefund = defineModel("isRefund", {default: false});
+const selectedUserId = defineModel("selectedUserId", { default: "" })
+
+const props = defineProps({
+  users: {
+    type: Array,
+    required: true
+  }
+});
 
 function handleSubmitClicked() {
-    emits('submitClicked', { name: nameModel.value, type: accountType.value, refundUserId: isRefund.value ? selectedUser.value : undefined });
+  emit('submitClicked', {
+    name: nameModel.value,
+    type: accountType.value,
+    refundUserId: isRefund.value ? selectedUserId.value : undefined
+  });
 }
-
-
 </script>
-
-<style scoped>
-.input-form {
-  max-width: 600px;
-  margin: 2rem auto;
-  background-color: #ffffff;
-  padding: 2rem;
-  border-radius: 0.5rem;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-
-.close {
-  font-size: 1.5rem;
-  font-weight: bold;
-}
-</style>
-

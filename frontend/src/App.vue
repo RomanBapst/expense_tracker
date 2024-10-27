@@ -11,16 +11,11 @@ import { useAuth0 } from '@auth0/auth0-vue';
 const router = useRouter()
 const auth0 = useAuth0();
 
-const authenticated = ref(auth0.isAuthenticated)
-
 router.beforeEach(function (to, from) {
-  console.log('beforeEach', to.path + ' - Auth: ' + authenticated.value)
-  if (to.path !== '/' && !authenticated.value) {
-    return { name: 'Login' }
-  } else if (to.path === '/' && authenticated.value) {
+  const auth = auth0.isAuthenticated
+  if (to.path == '/' && auth.value) {
     return { name: 'Expenses' }
-  }
-})
+  }})
 
 
 </script>

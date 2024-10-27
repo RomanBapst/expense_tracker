@@ -19,22 +19,16 @@ const router = useRouter()
 const isAuthenticated = ref(auth0.isAuthenticated)
 const isLoading = ref(auth0.isLoading)
 
-watch(isAuthenticated, () => {
-  if (isAuthenticated.value) {
-    router.push({name: "Expenses"})
-  }
-})
 
 onMounted(() => {
   if (isAuthenticated.value) {
     router.push({name: "Expenses"})
   }
 
-});
+ });
 
 async function login() {
-    await auth0.loginWithPopup()
-    router.push({name: "Expenses"})
+    await auth0.loginWithRedirect()
 }
 
 

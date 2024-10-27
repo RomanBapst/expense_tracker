@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient, Prisma } from '@prisma/client'
 import express from 'express'
 import cors from 'cors';
 import { Request as JWTRequest } from "express-jwt";
@@ -113,22 +113,59 @@ app.get('/users', async (req, res) => {
 
 })
 
-app.post('/employees', async (req, res) => {
-  const user = await prisma.employee.create({
-    data: {
-      name: req.body.name,
-      surname: req.body.surname,
-      salary: Number(req.body.salary)
+app.post('/users', upload.single('receipt'), async (req, res) => {
+try {
+
+  let data : any = {
+    name: req.body.name,
+    email : req.body.email
+  }
+
+  const user = await prisma.user.create({
+    data: data
+  })
+
+  res.json(user)
+
+} catch(error) {
+    res.status(500).json({ success: false, error: 'Internal server error' });
+}
+
+})
+
+
+app.delete('/users/:id', async (req, res) => {
+ try {
+  const user = await prisma.user.delete({
+    where: {
+      id: Number(req.params.id)
     }
   })
+
   res.json(user)
+  } catch(error) {
+
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      // Check for foreign key constraint violation (P2003)
+      if (error.code === 'P2003') {
+        return res.status(400).json({
+          message: 'Foreign key constraint violation: Cannot delete this user because it is referenced in another record.'
+        });
+      }
+    }
+    // For other errors, return a generic 500 error
+    return res.status(500).json({
+      message: 'An error occurred while trying to delete the expense.'
+    });
+  }
 })
 
 app.get('/expenses', async (req, res) => {
 
   prisma.expense.findMany({
     include: {
-      author: true
+      author: true,
+      account: true,
     }
   }).then((expenses) => {
     res.json(expenses)
@@ -303,6 +340,7 @@ app.put('/expenses/:id', upload.single('receipt'), async (req, res) => {
 })
 
 app.delete('/expenses/:id', async (req, res) => {
+  try {
   const user = await prisma.expense.delete({
     where: {
       id: Number(req.params.id)
@@ -310,73 +348,22 @@ app.delete('/expenses/:id', async (req, res) => {
   })
 
   res.json(user)
-})
-
-app.delete('/employees/:id', async (req, res) => {
-  const user = await prisma.employee.delete({
-    where: {
-      id: Number(req.params.id)
+  } catch(error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      // Check for foreign key constraint violation (P2003)
+      if (error.code === 'P2003') {
+        return res.status(400).json({
+          message: 'Foreign key constraint violation: Cannot delete this expense because it is referenced in another record.'
+        });
+      }
     }
-  })
-
-  res.json(user)
+    // For other errors, return a generic 500 error
+    return res.status(500).json({
+      message: 'An error occurred while trying to delete the expense.'
+    });
+  }
 })
 
-app.put('/employees/:id', async (req, res) => {
-  const id = Number(req.params.id)
-
-  console.log("here is is " + req.body.departmentId)
-
-  const user = await prisma.employee.update({
-    where: {
-      id
-    },
-    data: {
-      name: req.body.name,
-      surname: req.body.surname,
-      salary: req.body.salary,
-      departmentId: req.body.departmentId
-    }
-  })
-  res.json(user)
-})
-
-app.post('/departments', async (req, res) => {
-  console.log(req.body)
-  const user = await prisma.department.create({
-    data: {
-      name: req.body.name
-    }
-  })
-  res.json(user)
-})
-
-app.put('/departments/:id', async (req, res) => {
-  console.log(req.body)
-
-  const id = Number(req.body.id)
-  const user = await prisma.department.update({
-    where: {
-      id
-    },
-    data: {
-      name: req.body.name
-    }
-  })
-  res.json(user)
-})
-
-app.delete('/departments/:id', async (req, res) => {
-  const user = await prisma.department.delete({
-    where: {
-      id: Number(req.params.id)
-    }
-  }).then((result) => {
-    res.json(user)
-  }).catch((err) => {
-    res.json(err)
-  })
-})
 
 app.get('/account', async (req, res) => {
   prisma.expenseAccount.findMany().then((accounts) => {
@@ -413,7 +400,54 @@ app.post('/account', upload.single(''), async (req, res) => {
     res.status(500).json({ success: false, error: error.message });
   }
 })
+app.put('/account/:id', upload.single(''), async (req, res) => {
+  const id = Number(req.params.id)
 
+  let account = await prisma.expenseAccount.findUnique({
+    where: {
+      id: id
+    }
+  });
+
+  const { title, refundUserId} = req.body
+
+  account.name = title
+  account.refundUserId = Number(refundUserId)
+
+  const ret = await prisma.expenseAccount.update({
+    where: {
+      id : Number(req.params.id)
+    },
+    data: account
+  })
+  res.json(ret)
+})
+
+app.delete('/account/:id', async (req, res) => {
+ try {
+  const user = await prisma.expenseAccount.delete({
+    where: {
+      id: Number(req.params.id)
+    }
+  })
+
+  res.json(user)
+  } catch(error) {
+
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      // Check for foreign key constraint violation (P2003)
+      if (error.code === 'P2003') {
+        return res.status(400).json({
+          message: 'Foreign key constraint violation: Cannot delete this expense account because it is referenced in another record.'
+        });
+      }
+    }
+    // For other errors, return a generic 500 error
+    return res.status(500).json({
+      message: 'An error occurred while trying to delete this expense account.'
+    });
+  }
+})
 
 
 app.get('/isAdmin', async (req, res) => {

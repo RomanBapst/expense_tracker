@@ -1,8 +1,5 @@
 import { createApp } from 'vue'
 import App from './App.vue'
-import HomePage from './components/HomePage.vue'
-import EmployeePage from './components/EmployeePage.vue'
-import DepartmentPage from './components/DepartmentPage.vue'
 import ExpensePage from './components/ExpensePage.vue'
 import LoginPage from './components/LoginPage.vue'
 import AdminPage from './components/AdminPage.vue'
@@ -18,11 +15,11 @@ import './index.css'
 // We'll talk about nested routes later.
 const routes = [
   { path: '/', name: 'Login', component: LoginPage },
-  { path: '/admin', name: 'Admin', component: AdminPage },
+  { path: '/admin', name: 'Admin', component: AdminPage, beforeEnter: authGuard },
   //{ path: '/home', name: 'Home', component: HomePage },
   //{ path: '/employees', name: 'Employees', component: EmployeePage},
   //{ path: '/departments', name: 'Departments', component: DepartmentPage},
-  { path: '/expenses', name: 'Expenses', component: ExpensePage},
+  { path: '/expenses', name: 'Expenses', component: ExpensePage, beforeEnter: authGuard},
 ]
 
 // 3. Create the router instance and pass the `routes` option
@@ -30,7 +27,7 @@ const routes = [
 // keep it simple for now.
 const router = createRouter({
   // 4. Provide the history implementation to use. We are using the hash history for simplicity here.
-  history: createWebHistory(process.env.VUE_APP_LOCAL_PATH),
+  history: createWebHistory(),
   routes, // short for `routes: routes`
 })
 

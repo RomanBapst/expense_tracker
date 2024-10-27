@@ -34,7 +34,7 @@ model Expense {
   receiptFilename String?
   receiptPath    String?
   archived Boolean @default(false)
-  account ExpenseAccount? @relation(fields: [accountId], references: [id])
+  account ExpenseAccount? @relation(fields: [accountId], references: [id], onDelete: Restrict)
   accountId Int?
 }
 
