@@ -3,6 +3,7 @@ FROM node:21-alpine as build-stage
 RUN apk add --no-cache git
 
 WORKDIR /app
+COPY ../.git /app/.git
 COPY package*.json ./
 RUN npm install
 COPY . .
