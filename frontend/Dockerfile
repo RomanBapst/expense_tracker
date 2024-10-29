@@ -3,6 +3,12 @@ FROM node:21-alpine as build-stage
 RUN apk add --no-cache git
 
 WORKDIR /app
+
+
+RUN --mount=type=bind,source=../,target=/parent-folder \
+    export GIT_HASH=$(git -C /parent-folder rev-parse --short HEAD) && \
+    echo "VUE_APP_GIT_HASH=$GIT_HASH" > .env
+
 COPY package*.json ./
 RUN npm install
 COPY . .
