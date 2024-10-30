@@ -212,7 +212,11 @@ app.post('/expenses', upload.single('receipt'), async (req, res) => {
     }
 
     const expense = await prisma.expense.create({
-      data: expenseData
+      data: expenseData,
+      include: {
+        author: true,
+        account: true
+      }
     });
 
     res.json(expense);

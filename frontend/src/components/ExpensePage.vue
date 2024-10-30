@@ -1,118 +1,114 @@
 <template>
-  <NavigationBar />
-  <div class="container mx-auto mt-8">
-    <fwb-heading tag="h1" class="text-blue-400 mb-6 text-2xl font-bold"
-    >Expense Tracker Ver2: ({{ gitHash }})</fwb-heading
-    >
-    <!-- Updated title style -->
+  <div class="flex flex-col h-screen mx-auto">
+    <!-- Fixed NavigationBar on top -->
+    <NavigationBar class="fixed top-0 left-0 w-full z-50" />
     
-    
-    <!-- AddExpense Component: Conditionally Rendered -->
-    
-    <Spinner v-if="isUploading" />
-    <AddExpense
-    v-if="(isEditing || isAdding) && !isUploading"
-    v-model:title="title"
-    v-model:description="description"
-    v-model:amount="amount"
-    v-model:date="date"
-    v-model:accountId="expenseAccount"
-    :hasExistingReceipt="hasExistingReceipt"
-    :isAdding="isAdding"
-    :accountTypes="accounts"
-    :removeExistingReceipt="removeExistingReceipt"
-    :file="file"
-    @close="closeAddExpenseDialog"
-    @submitClicked="handleAddExpense"
-    />
-    
-    <Spinner v-if="isLoading" />
-    
-    
-    <div v-if="!isEditing && !isAdding">
-      <div v-if="isAdmin" class="flex justify-between mb-4">
-        <fwb-button @click="showAddExpenseForm">Add New Expense</fwb-button>
-        <input
-        type="text"
-        v-model="searchQuery"
-        placeholder="Search expenses..."
-        class="border rounded p-2"
-        />
+    <!-- Content wrapper with padding at the top to avoid overlap with NavigationBar -->
+    <div class="pt-16 pb-10 flex flex-col h-full">
+      <div class="px-4 py-2">
+        <fwb-heading tag="h1" class="text-blue-400 text-2xl font-bold">
+          Expense Tracker Ver2: ({{ gitHash }})
+        </fwb-heading>
       </div>
-      <div class="tabs mb-4">
-        <button @click="activeTab = 'tab1'" :class="{ active: activeTab === 'tab1' }">
+      
+      <!-- Conditionally Rendered Components -->
+      <Spinner v-if="isUploading" />
+      <AddExpense
+      v-if="(isEditing || isAdding) && !isUploading"
+      v-model:title="title"
+      v-model:description="description"
+      v-model:amount="amount"
+      v-model:date="date"
+      v-model:accountId="expenseAccount"
+      :hasExistingReceipt="hasExistingReceipt"
+      :isAdding="isAdding"
+      :accountTypes="accounts"
+      :removeExistingReceipt="removeExistingReceipt"
+      :file="file"
+      @close="closeAddExpenseDialog"
+      @submitClicked="handleAddExpense"
+      />
+      
+      <!-- Loading Spinner -->
+      <Spinner v-if="isLoading" />
+      
+      <!-- Main Content Area -->
+      <div class="expenses-table flex flex-col h-full overflow-y-auto mb-8 px-4">
+        <!-- Admin Controls -->
+        <div v-if="isAdmin" class="flex justify-between mb-4">
+          <fwb-button @click="showAddExpenseForm">Add New Expense</fwb-button>
+          <input
+          type="text"
+          v-model="searchQuery"
+          placeholder="Search expenses..."
+          class="border rounded p-2"
+          />
+        </div>
+        
+        <div class="tabs mb-4 flex border-b border-gray-200">
+          <button
+          @click="activeTab = 'tab1'"
+          :class="{
+            'text-blue-600 border-b-2 border-blue-600': activeTab === 'tab1',
+            'text-gray-500 hover:text-gray-700': activeTab !== 'tab1'
+          }"
+          class="px-4 py-2 -mb-px focus:outline-none transition-colors duration-200"
+          >
           Open Expenses
         </button>
-        <button @click="activeTab = 'tab2'" :class="{ active: activeTab === 'tab2' }">
-          Archived Expenses
-        </button>
-      </div>
-      <SimpleTable
-      v-if="activeTab === 'tab1' && !isLoading"
-      :header="[
-      'Account',
-      'Author',
-      'Date',
-      'Title',
-      'Description',
-      'Amount',
-      'Receipt',
-      'Actions',
-      ]"
-      :items="filteredExpenses"
-      :sortFunction="sortByColumn"
-      >
-      <template #cell-6="{ item }">
-        <span
-        v-if="item.receipt"
-        class="cursor-pointer text-blue-500"
-        @click="openReceipt(item.id)"
-        >📎</span
+        <button
+        @click="activeTab = 'tab2'"
+        :class="{
+          'text-blue-600 border-b-2 border-blue-600': activeTab === 'tab2',
+          'text-gray-500 hover:text-gray-700': activeTab !== 'tab2'
+        }"
+        class="px-4 py-2 -mb-px focus:outline-none transition-colors duration-200"
         >
-      </template>
-      <template #button1="{item}">
-        .<fwb-button @click="archiveExpense(item.id)" class="bg-blue-700">
-          Archive
-        </fwb-button>
-      </template>
-      <template #button2="{ item }">
-        .<fwb-button @click="handleEditExpense(item.id)" class="bg-green-700">
-          Edit
-        </fwb-button>
-      </template>
-    </SimpleTable>
+        Archived Expenses
+      </button>
+    </div>
+    
+    
+    <!-- Expenses Tables -->
     <SimpleTable
-    v-if="activeTab === 'tab2' && !isLoading"
-    :header="[
-    'Account',
-    'Author',
-    'Date',
-    'Title',
-    'Description',
-    'Amount',
-    'Receipt',
-    'Actions',
-    ]"
-    :items="prepareArchivedExpenses()"
+    v-if="activeTab === 'tab1' && !isLoading"
+    :header="['Account', 'Author', 'Date', 'Title', 'Description', 'Amount', 'Receipt', 'Actions']"
+    :items="filteredExpenses"
     :sortFunction="sortByColumn"
     >
     <template #cell-6="{ item }">
-      <span
-      v-if="item.receipt"
-      class="cursor-pointer text-blue-500"
-      @click="openReceipt(item.id)"
-      >📎</span
-      >
+      <span v-if="item.receipt" class="cursor-pointer text-blue-500" @click="openReceipt(item.id)">
+        📎
+      </span>
     </template>
-    <template #button1="{item}">
-      .<fwb-button @click="restoreExpense(item.id)" class="bg-blue-700">
-        Restore
-      </fwb-button>
+    <template #button1="{ item }">
+      <fwb-button @click="archiveExpense(item.id)" class="bg-blue-700">Archive</fwb-button>
+    </template>
+    <template #button2="{ item }">
+      <fwb-button @click="handleEditExpense(item.id)" class="bg-green-700">Edit</fwb-button>
     </template>
   </SimpleTable>
+  
+  <SimpleTable
+  v-if="activeTab === 'tab2' && !isLoading"
+  :header="['Account', 'Author', 'Date', 'Title', 'Description', 'Amount', 'Receipt', 'Actions']"
+  :items="prepareArchivedExpenses()"
+  :sortFunction="sortByColumn"
+  >
+  <template #cell-6="{ item }">
+    <span v-if="item.receipt" class="cursor-pointer text-blue-500" @click="openReceipt(item.id)">
+      📎
+    </span>
+  </template>
+  <template #button1="{ item }">
+    <fwb-button @click="restoreExpense(item.id)" class="bg-blue-700">Restore</fwb-button>
+  </template>
+</SimpleTable>
+</div>
 </div>
 </div>
 </template>
+
 
 <script setup lang="ts">
 import NavigationBar from "./NavigationBar.vue";
@@ -154,6 +150,8 @@ const removeExistingReceipt = ref(false);
 const expenseAccount = ref<string>("")
 
 const searchQuery = ref("");
+
+const scrollPosition = ref(0); // Holds the vertical scroll position
 
 
 
@@ -245,11 +243,11 @@ async function archiveExpense(id: number) {
 }
 
 function sortByColumn(index: number, sortDirection: string, sortedItems: Array<any>) {
-
+  
   if (index >= columns.length) {
     return sortedItems;
   }
-
+  
   return sortedItems.sort((a, b) => {
     let aValue = a.values[index];
     let bValue = b.values[index];
@@ -381,7 +379,14 @@ async function editExpense(id: number, formData: FormData) {
       throw new Error(`Error: ${response.status} - ${errorData.message}`);
     }
     
-    await getAllExpenses();
+    const updatedExpense = await response.json();
+
+    // Find and update the specific expense in the array
+    const index = expenses.value.findIndex(expense => expense.id === id);
+    if (index !== -1) {
+      // Update only the modified expense
+      expenses.value[index] = { ...expenses.value[index], ...updatedExpense };
+    }
   } catch (err) {
     console.error(`Failed to edit expense:`, err.message);
   } finally {
@@ -389,6 +394,7 @@ async function editExpense(id: number, formData: FormData) {
     resetForm();
   }
 }
+
 
 async function addExpense(formData: FormData) {
   try {
@@ -412,14 +418,16 @@ async function addExpense(formData: FormData) {
       throw new Error(`Error: ${response.status} - ${errorData.message}`);
     }
     
-    resetForm();
-    await getAllExpenses();
+    const newExpense = await response.json();
+    expenses.value.push(newExpense);  // Add the new expense directly to the array
   } catch (err: any) {
     console.error(`Failed to add expense:`, err.message);
   } finally {
     isUploading.value = false;
+    resetForm();
   }
 }
+
 
 function resetForm() {
   title.value = "";
@@ -531,6 +539,11 @@ async function handleEditExpense(id: number) {
   if (isAdding.value || isEditing.value) {
     return;
   }
+
+  scrollPosition.value = document.querySelector('.expenses-table').scrollTop;
+
+  console.log("scroll pos is " + scrollPosition.value )
+
   
   const expense = expenses.value.find((exp) => exp.id === id);
   if (expense !== undefined) {
@@ -552,47 +565,3 @@ onMounted(() => {
   getAllAccounts();
 });
 </script>
-
-<style scoped>
-.container {
-  padding: 1rem;
-}
-
-.table-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.5rem;
-}
-
-.input_form {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  margin-bottom: 1rem;
-}
-
-.input_form .input_button {
-  align-self: flex-end;
-}
-
-.tabs {
-  display: flex;
-  border-bottom: 1px solid #ccc;
-  margin-bottom: 1rem;
-}
-
-.tabs button {
-  padding: 0.5rem 1rem;
-  font-size: 1rem;
-  cursor: pointer;
-  border: none;
-  background-color: transparent;
-  border-bottom: 2px solid transparent;
-  transition: border-bottom-color 0.3s ease;
-}
-
-.tabs button.active {
-  border-bottom-color: #4a90e2;
-  font-weight: bold;
-}
-</style>
