@@ -26,3 +26,9 @@ pnpm-debug.log*
 
 backend/uploads/
 postgres-data/
+
+uploads/**
+target/**
+backend_rust/**
+..*
+Cargo*
