@@ -39,9 +39,8 @@ watch(
 
 function sortByColumn(columnIndex) {
   if (!props.sortFunction) {
-    return
+    return;
   }
-
 
   if (sortedColumn.value === columnIndex) {
     sortDirection.value = sortDirection.value === "asc" ? "desc" : "asc";
@@ -57,12 +56,13 @@ function sortByColumn(columnIndex) {
 </script>
 
 <template>
-  <fwb-table>
+  <fwb-table class="overflow-y-auto border border-gray-300">
     <fwb-table-head>
       <fwb-table-head-cell
         v-for="(name, index) in header"
         :key="name"
         @click="sortByColumn(index)"
+        class="cursor-pointer text-left px-4 py-2 font-semibold text-gray-700"
       >
         {{ name }}
         <span
@@ -80,89 +80,26 @@ function sortByColumn(columnIndex) {
     <fwb-table-body>
       <fwb-table-row v-for="item in sortedItems" :key="item.id">
         <template #default>
-          <fwb-table-cell v-for="(value, index) in item.values" :key="index">
+          <fwb-table-cell
+            v-for="(value, index) in item.values"
+            :key="index"
+            class="px-4 py-2"
+          >
             <slot :name="'cell-' + index" :item="item">
-              <div class="tooltip text-overflow" :title="value">
+              <div
+                class="max-w-xs overflow-hidden text-ellipsis whitespace-nowrap"
+                :title="value"
+              >
                 {{ value }}
               </div>
             </slot>
           </fwb-table-cell>
-          <fwb-table-cell class="buttons">
-
+          <fwb-table-cell class="flex justify-end px-4 py-2">
             <slot name="button1" :emit="$emit" :item="item"></slot>
-            <slot name="button2" :emit="$emit" :item="item">
-              
-            </slot>
-            
+            <slot name="button2" :emit="$emit" :item="item"></slot>
           </fwb-table-cell>
         </template>
       </fwb-table-row>
     </fwb-table-body>
   </fwb-table>
 </template>
-
-<style scoped>
-.text-overflow {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 300px; /* Adjust based on your layout */
-}
-
-.tooltip {
-  position: relative;
-  display: inline-block;
-}
-
-.tooltip .tooltiptext {
-  visibility: hidden;
-  width: 120px;
-  background-color: black;
-  color: #fff;
-  text-align: center;
-  border-radius: 6px;
-  padding: 5px 0;
-  position: absolute;
-  z-index: 1;
-  bottom: 125%; /* Position the tooltip above the text */
-  left: 50%;
-  margin-left: -60px;
-  opacity: 0;
-  transition: opacity 0.3s;
-}
-
-.tooltip:hover .tooltiptext {
-  visibility: visible;
-  opacity: 1;
-}
-
-.icon-arrow-up,
-.icon-arrow-down {
-  display: inline-block;
-  width: 0;
-  height: 0;
-  margin-left: 0.25rem;
-  vertical-align: middle;
-  border: solid transparent;
-}
-
-.icon-arrow-up {
-  border-width: 0 0.5rem 0.5rem 0.5rem;
-  border-bottom-color: currentColor;
-}
-
-.icon-arrow-down {
-  border-width: 0.5rem;
-  border-bottom-width: 0;
-  border-top-color: currentColor;
-}
-
-.buttons {
-  display: flex;
-  justify-content: flex-end;
-}
-
-.buttons fwb-button {
-  margin-left: 8px; /* Add space between buttons */
-}
-</style>
