@@ -35,8 +35,7 @@ onMounted(() => {
 
 watch(
   () => props.items,
-  (newValue) => {
-    console.log("getting a new value, sorting by index " + lastSortIndex.value + " and dir " + sortDirection.value)
+  (_newValue) => {
     sortDirection.value = sortDirection.value === "asc" ? "desc" : "asc";
     sortByColumn(lastSortIndex.value)
   }

@@ -12,7 +12,6 @@
       </div>
       
       <!-- Conditionally Rendered Components -->
-      <Spinner v-if="isUploading" />
       <AddExpense
       v-if="(isEditing || isAdding) && !isUploading"
       v-model:title="title"
@@ -29,8 +28,6 @@
       @submitClicked="handleAddExpense"
       />
       
-      <!-- Loading Spinner -->
-      <Spinner v-if="isLoading" />
       
       <!-- Main Content Area -->
       <div class="expenses-table flex flex-col h-full overflow-y-auto mb-8 px-4">
