@@ -9,6 +9,7 @@ import {
   FwbTableRow,
   FwbButton,
 } from "flowbite-vue";
+import { sort } from "mathjs";
 
 const props = defineProps({
   header: {
@@ -26,6 +27,8 @@ const sortedColumn = ref(null);
 const sortDirection = ref("asc");
 const sortedItems = ref([]);
 
+const lastSortIndex = ref(0)
+
 onMounted(() => {
   sortByColumn(0);
 });
@@ -33,7 +36,9 @@ onMounted(() => {
 watch(
   () => props.items,
   (newValue) => {
-    sortedItems.value = newValue;
+    console.log("getting a new value, sorting by index " + lastSortIndex.value + " and dir " + sortDirection.value)
+    sortDirection.value = sortDirection.value === "asc" ? "desc" : "asc";
+    sortByColumn(lastSortIndex.value)
   }
 );
 
@@ -41,6 +46,8 @@ function sortByColumn(columnIndex) {
   if (!props.sortFunction) {
     return;
   }
+
+  lastSortIndex.value = columnIndex
 
   if (sortedColumn.value === columnIndex) {
     sortDirection.value = sortDirection.value === "asc" ? "desc" : "asc";
