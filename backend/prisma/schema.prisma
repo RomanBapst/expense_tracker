@@ -28,7 +28,7 @@ model Expense {
   updatedAt DateTime @updatedAt
   title String
   comment String?
-  amount Float @db.Real @default(0)
+  amount Decimal @default(0)
   author User @relation(fields: [authorId], references: [id])
   authorId Int
   receiptFilename String?
