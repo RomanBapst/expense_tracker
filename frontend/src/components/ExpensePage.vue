@@ -68,7 +68,7 @@
     
     <!-- Expenses Tables -->
     <SimpleTable
-    v-if="activeTab === 'tab1' && !isLoading"
+    v-show="activeTab === 'tab1' && !isLoading"
     :header="['Account', 'Author', 'Date', 'Title', 'Description', 'Amount', 'Receipt', 'Actions']"
     :items="filteredExpenses"
     :sortFunction="sortByColumn"
@@ -87,7 +87,7 @@
   </SimpleTable>
   
   <SimpleTable
-  v-if="activeTab === 'tab2' && !isLoading"
+  v-show="activeTab === 'tab2' && !isLoading"
   :header="['Account', 'Author', 'Date', 'Title', 'Description', 'Amount', 'Receipt', 'Actions']"
   :items="prepareArchivedExpenses()"
   :sortFunction="sortByColumn"
@@ -199,7 +199,7 @@ const filteredExpenses = computed(() => {
     convertDate(el.createdAt),
     el.title,
     el.comment,
-    Number(el.amount).toLocaleString(),
+    Number(el.amount).toLocaleString("en-US"),
     el.receiptPath,
     ],
     receipt: el.receiptPath,
@@ -347,7 +347,7 @@ function prepareArchivedExpenses() {
     convertDate(el.createdAt),
     el.title,
     el.comment,
-    Number(el.amount).toLocaleString(),
+    Number(el.amount).toLocaleString("en-US"),
     el.receiptPath,
     ],
     receipt: el.receiptPath,
