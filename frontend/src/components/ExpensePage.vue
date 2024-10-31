@@ -89,7 +89,7 @@
   <SimpleTable
   v-show="activeTab === 'tab2' && !isLoading"
   :header="['Account', 'Author', 'Date', 'Title', 'Description', 'Amount', 'Receipt', 'Actions']"
-  :items="prepareArchivedExpenses()"
+  :items="filteredArchivedExpenses"
   :sortFunction="sortByColumn"
   >
   <template #cell-6="{ item }">
@@ -339,6 +339,17 @@ function prepareArchivedExpenses() {
   .filter((el) => {
     return el.archived;
   })
+}
+const filteredArchivedExpenses = computed(() => {
+  return prepareArchivedExpenses()
+  .filter((expense) => {
+    return (
+    expense.title.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
+    (expense.comment &&
+    expense.comment.toLowerCase().includes(searchQuery.value.toLowerCase())) ||
+    String(expense.id).includes(searchQuery.value.toLowerCase())
+    );
+  })
   .map((el) => ({
     id: el.id,
     values: [
@@ -352,7 +363,7 @@ function prepareArchivedExpenses() {
     ],
     receipt: el.receiptPath,
   }));
-}
+});
 
 async function editExpense(id: number, formData: FormData) {
   try {
