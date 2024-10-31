@@ -7,7 +7,7 @@
     <div class="pt-16 pb-10 flex flex-col h-full">
       <div class="px-4 py-2">
         <fwb-heading tag="h1" class="text-blue-400 text-2xl font-bold">
-          Expense Tracker Ver2: ({{ gitHash }})
+          Expense Tracker
         </fwb-heading>
       </div>
       
