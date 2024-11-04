@@ -116,7 +116,7 @@ import { ref, onMounted, computed } from "vue";
 import { useAuth0 } from "@auth0/auth0-vue";
 import { Expense, Account } from "@/expenses/expenses";
 import { FwbButton } from "flowbite-vue"; // Add this import statement
-import { exp, number } from "mathjs";
+import { exp, number, sortDependencies } from "mathjs";
 
 import {isAdmin, getIsAdmin} from "@/utils/authUtils" 
 
@@ -188,6 +188,8 @@ const filteredExpenses = computed(() => {
     expense.title.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
     (expense.comment &&
     expense.comment.toLowerCase().includes(searchQuery.value.toLowerCase())) ||
+    (expense.account?.name &&
+    expense.account.name.toLowerCase().includes(searchQuery.value.toLowerCase())) ||
     String(expense.id).includes(searchQuery.value.toLowerCase())
     );
   })
@@ -347,6 +349,8 @@ const filteredArchivedExpenses = computed(() => {
     expense.title.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
     (expense.comment &&
     expense.comment.toLowerCase().includes(searchQuery.value.toLowerCase())) ||
+    (expense.account?.name &&
+    expense.account.name.toLowerCase().includes(searchQuery.value.toLowerCase())) ||
     String(expense.id).includes(searchQuery.value.toLowerCase())
     );
   })

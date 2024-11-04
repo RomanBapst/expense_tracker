@@ -23,14 +23,12 @@ const props = defineProps({
   sortFunction: Function,
 });
 
-const sortedColumn = ref(null);
-const sortDirection = ref("asc");
+const sortedColumn = ref(0);
+const sortDirection = ref("desc");
 const sortedItems = ref([]);
 
-const lastSortIndex = ref(0)
-
 onMounted(() => {
-  sortByColumn(0);
+  sortByColumn(2);
 });
 
 watch(
@@ -40,25 +38,22 @@ watch(
   if (!props.sortFunction) {
     sortedItems.value = newValue
   } else {
-    sortDirection.value = sortDirection.value === "asc" ? "desc" : "asc";
-    sortByColumn(lastSortIndex.value)
+    sortByColumn(sortedColumn.value)
   }
 }
 );
 
-function sortByColumn(columnIndex) {
+function sortByColumn(columnIndex, userTriggered=false) {
   if (!props.sortFunction) {
     return;
   }
   
-  lastSortIndex.value = columnIndex
   
-  if (sortedColumn.value === columnIndex) {
+  if (sortedColumn.value === columnIndex && userTriggered) {
     sortDirection.value = sortDirection.value === "asc" ? "desc" : "asc";
-  } else {
-    sortedColumn.value = columnIndex;
-    sortDirection.value = "asc";
   }
+  
+  sortedColumn.value = columnIndex;
   
   sortedItems.value = props.sortFunction(columnIndex, sortDirection.value, [
   ...props.items,
@@ -72,7 +67,7 @@ function sortByColumn(columnIndex) {
       <fwb-table-head-cell
       v-for="(name, index) in header"
       :key="name"
-      @click="sortByColumn(index)"
+      @click="sortByColumn(index, true)"
       class="cursor-pointer text-left px-4 py-2 font-semibold text-gray-700"
       >
       {{ name }}
