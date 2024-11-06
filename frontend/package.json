@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@auth0/auth0-vue": "^2.3.3",
+    "axios": "^1.7.7",
     "core-js": "^3.8.3",
     "flowbite": "^2.3.0",
     "flowbite-vue": "^0.1.3",
