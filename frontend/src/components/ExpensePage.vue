@@ -38,6 +38,7 @@
           type="text"
           v-model="searchQuery"
           placeholder="Search expenses..."
+          @keyup.enter="onSearch" 
           class="border rounded p-2"
           />
         </div>
@@ -117,11 +118,14 @@ import { useAuth0 } from "@auth0/auth0-vue";
 import { Expense, Account } from "@/expenses/expenses";
 import { FwbButton } from "flowbite-vue"; // Add this import statement
 import { exp, number, sortDependencies } from "mathjs";
+import axios from 'axios';
+import { useRoute, useRouter } from 'vue-router';
+
 
 import {isAdmin, getIsAdmin} from "@/utils/authUtils" 
 
-const gitHash = process.env.VUE_APP_GIT_HASH || ''
-
+const router = useRouter();
+const route = useRoute();
 const auth0 = useAuth0();
 const expenses = ref<Expense[]>([]);
 
@@ -176,6 +180,13 @@ const columns = [
 
 const baseUrl = process.env.VUE_APP_API_ADDR + "/expenses";
 
+const onSearch = async () => {
+  if (searchQuery.value) {
+    router.push({ query: { search: searchQuery.value } });
+  }
+  await getAllExpenses();
+};
+
 function closeAddExpenseDialog() {
   isEditing.value = false;
   isAdding.value = false;
@@ -183,16 +194,6 @@ function closeAddExpenseDialog() {
 
 const filteredExpenses = computed(() => {
   return prepareExpenses()
-  .filter((expense) => {
-    return (
-    expense.title.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-    (expense.comment &&
-    expense.comment.toLowerCase().includes(searchQuery.value.toLowerCase())) ||
-    (expense.account?.name &&
-    expense.account.name.toLowerCase().includes(searchQuery.value.toLowerCase())) ||
-    String(expense.id).includes(searchQuery.value.toLowerCase())
-    );
-  })
   .map((el) => ({
     id: el.id,
     values: [
@@ -502,17 +503,15 @@ async function getAllExpenses() {
       auth0.loginWithRedirect();
     });
     
-    const response = await fetch(baseUrl, {
+    const response = await axios.get(baseUrl, {
       headers: { Authorization: "Bearer " + token },
+      params: {
+        search: searchQuery.value
+      }
     });
     
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(`Error: ${response.status} - ${errorData.message}`);
-    }
     
-    const data = await response.json();
-    expenses.value = data;
+    expenses.value = response.data;
   } catch (err) {
     console.error("Failed to fetch expenses:", err.message);
   } finally {
@@ -573,7 +572,12 @@ async function handleEditExpense(id: number) {
 
 onMounted(() => {
   getIsAdmin();
-  getAllExpenses();
   getAllAccounts();
+
+  if (route.query.search) {
+    searchQuery.value = route.query.search.toString();
+  }
+  getAllExpenses();
+
 });
 </script>
