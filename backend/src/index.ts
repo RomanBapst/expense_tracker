@@ -162,7 +162,41 @@ app.delete('/users/:id', async (req, res) => {
 
 app.get('/expenses', async (req, res) => {
 
+  const search = req.query.search.toString()
+
   prisma.expense.findMany({
+    where: {
+      OR: [
+        {
+         title: {
+          contains: search,
+          mode: 'insensitive'
+         } 
+        },
+        {
+         comment: {
+          contains: search,
+          mode: 'insensitive'
+         } 
+        },
+        {
+         author: {
+          name: {
+          contains: search,
+          mode: 'insensitive'
+          }
+         }
+        },
+        {
+         account: {
+          name: {
+          contains: search,
+          mode: 'insensitive'
+          }
+         },
+        }
+      ]
+    },
     include: {
       author: true,
       account: true,
