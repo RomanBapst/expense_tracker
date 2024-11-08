@@ -59,19 +59,19 @@ app.use(express.json())
 app.use(
   checkJwt,
   function (req: JWTRequest, res: express.Response, next) {
-
+    
     res.locals.user = req.auth?.email
     res.locals.auth = req.auth
-
+    
     console.log(req.auth)
-
+    
     prisma.user.findFirstOrThrow({
       where: {
         email: req.auth?.email
       }
     }).then((user) => {
       console.log(user)
-
+      
       if (req.auth?.email != user.email) {
         return res.sendStatus(401);
       }
@@ -95,7 +95,7 @@ app.get('/employees', async (_req, res) => {
 })
 
 app.get('/departments', async (_req: JWTRequest, res) => {
-
+  
   prisma.department.findMany().then((departments) => {
     res.json(departments)
   }).catch((error) => {
@@ -110,41 +110,41 @@ app.get('/users', async (req, res) => {
     console.log(error)
     res.status(500).json({ success: false, error: 'Internal server error' });
   })
-
+  
 })
 
 app.post('/users', upload.single('receipt'), async (req, res) => {
-try {
-
-  let data : any = {
-    name: req.body.name,
-    email : req.body.email
-  }
-
-  const user = await prisma.user.create({
-    data: data
-  })
-
-  res.json(user)
-
-} catch(error) {
+  try {
+    
+    let data : any = {
+      name: req.body.name,
+      email : req.body.email
+    }
+    
+    const user = await prisma.user.create({
+      data: data
+    })
+    
+    res.json(user)
+    
+  } catch(error) {
     res.status(500).json({ success: false, error: 'Internal server error' });
-}
-
+  }
+  
 })
 
 
 app.delete('/users/:id', async (req, res) => {
- try {
-  const user = await prisma.user.delete({
-    where: {
-      id: Number(req.params.id)
-    }
-  })
-
-  res.json(user)
+  try {
+    const user = await prisma.user.delete({
+      where: {
+        id: Number(req.params.id)
+      }
+    })
+    
+    res.json(user)
   } catch(error) {
-
+    
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
       // Check for foreign key constraint violation (P2003)
       if (error.code === 'P2003') {
@@ -160,69 +160,67 @@ app.delete('/users/:id', async (req, res) => {
   }
 })
 
-app.get('/expenses', async (req, res) => {
-
-  const search = req.query.search.toString()
-
-  prisma.expense.findMany({
-    where: {
-      OR: [
-        {
-         title: {
-          contains: search,
-          mode: 'insensitive'
-         } 
-        },
-        {
-         comment: {
-          contains: search,
-          mode: 'insensitive'
-         } 
-        },
-        {
-         author: {
-          name: {
-          contains: search,
-          mode: 'insensitive'
-          }
-         }
-        },
-        {
-         account: {
-          name: {
-          contains: search,
-          mode: 'insensitive'
-          }
-         },
+  app.get('/expenses', async (req, res) => {
+    try {
+      const { search = '', archived, orderColName = 'title', order = 'asc' } = req.query;
+  
+      const sortOrder = order === 'desc' ? 'desc' : 'asc';
+  
+      // Set up `orderBy` based on column type
+      const orderBy = (() => {
+        if (orderColName === 'account') {
+          return { account: { name: sortOrder } } as Prisma.ExpenseOrderByWithRelationInput;
+        } else if (orderColName === 'author') {
+          return { author: { name: sortOrder } } as Prisma.ExpenseOrderByWithRelationInput;
+        } else {
+          return { [orderColName.toString()]: sortOrder } as Prisma.ExpenseOrderByWithRelationInput;
         }
-      ]
-    },
-    include: {
-      author: true,
-      account: true,
+      })();
+  
+      const expenses = await prisma.expense.findMany({
+        where: {
+          AND: [
+            {
+              OR: [
+                { title: { contains: search.toString(), mode: 'insensitive' } },
+                { comment: { contains: search.toString(), mode: 'insensitive' } },
+                { author: { name: { contains: search.toString(), mode: 'insensitive' } } },
+                { account: { name: { contains: search.toString(), mode: 'insensitive' } } }
+              ]
+            },
+            archived !== undefined ? { archived: archived === 'true' } : {}
+          ]
+        },
+        orderBy,
+        include: {
+          author: true,
+          account: true
+        }
+      });
+  
+      res.json(expenses);
+    } catch (error) {
+      console.error('Error fetching expenses:', error);
+      res.status(500).json({ error: 'An error occurred while fetching expenses' });
     }
-  }).then((expenses) => {
-    res.json(expenses)
-  }).catch((error) => {
-    console.log(error)
-  })
-})
+  });
+  
 
 // Endpoint to add an expense with an attached file
 app.post('/expenses', upload.single('receipt'), async (req, res) => {
   try {
     // Type cast the request to RequestWithFile
     const reqWithFile = req as RequestWithFile;
-
+    
     const user = await prisma.user.findFirstOrThrow({
       where: {
         email: res.locals.user
       }
     });
-
+    
     console.log("Found user " + user.email);
-
-
+    
+    
     const expenseData: any = {
       title: req.body.title,
       comment: req.body.description,
@@ -238,13 +236,13 @@ app.post('/expenses', upload.single('receipt'), async (req, res) => {
         connect: { id: expenseAccountId }
       };
     }
-
+    
     // If a file was uploaded, add file details to expenseData
     if (reqWithFile.file) {
       expenseData.receiptFilename = reqWithFile.file.filename;
       expenseData.receiptPath = reqWithFile.file.path;
     }
-
+    
     const expense = await prisma.expense.create({
       data: expenseData,
       include: {
@@ -252,7 +250,7 @@ app.post('/expenses', upload.single('receipt'), async (req, res) => {
         account: true
       }
     });
-
+    
     res.json(expense);
   } catch (error) {
     console.error('Error adding expense:', error);
@@ -312,62 +310,62 @@ app.get('/expenses/:id/file', async (req, res) => {
 
 app.put('/expenses/:id', upload.single('receipt'), async (req, res) => {
   const id = Number(req.params.id)
-
+  
   const expense = await prisma.expense.findUnique({
     where: {
       id: id
     }
   });
-
+  
   const { title, description, amount, date, archived, removeReceipt} = req.body
-
+  
   let expenseData: any = {
     title: title,
     comment: description,
     amount: parseFloat(amount),
     createdAt: new Date(date),
   };
-
-    const expenseAccountId = Number(req.body.expenseAccount);
-    if (!isNaN(expenseAccountId)) {
-      expenseData.account = {
-        connect: { id: expenseAccountId }
-      };
-    }
-
+  
+  const expenseAccountId = Number(req.body.expenseAccount);
+  if (!isNaN(expenseAccountId)) {
+    expenseData.account = {
+      connect: { id: expenseAccountId }
+    };
+  }
+  
   if (archived !== undefined) {
     expenseData.archived = archived.toLowerCase() === 'true'
   }
-
+  
   if (removeReceipt && expense.receiptPath) {
-
+    
     const rootDir = process.cwd();
     const pathToFile = path.join(rootDir, expense.receiptPath)
-
+    
     fs.unlink(pathToFile, (err) => {
-
+      
       if (err) {
         console.log(`Èrror deleting file ${expenseData.receiptPath}`)
         res.status(500).json({ error: 'Error deleting receipt file' });
         return;
       }
-
+      
     })
-
+    
     expenseData.receiptFilename = null;
     expenseData.receiptPath = null;
   }
-
+  
   // Type cast the request to RequestWithFile
   const reqWithFile = req as RequestWithFile;
-
+  
   // If a file was uploaded, add file details to expenseData
   if (reqWithFile.file) {
     expenseData.receiptFilename = reqWithFile.file.filename;
     expenseData.receiptPath = reqWithFile.file.path;
   }
-
-
+  
+  
   const user = await prisma.expense.update({
     where: {
       id : Number(req.params.id)
@@ -379,13 +377,13 @@ app.put('/expenses/:id', upload.single('receipt'), async (req, res) => {
 
 app.delete('/expenses/:id', async (req, res) => {
   try {
-  const user = await prisma.expense.delete({
-    where: {
-      id: Number(req.params.id)
-    }
-  })
-
-  res.json(user)
+    const user = await prisma.expense.delete({
+      where: {
+        id: Number(req.params.id)
+      }
+    })
+    
+    res.json(user)
   } catch(error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
       // Check for foreign key constraint violation (P2003)
@@ -419,15 +417,15 @@ app.post('/account', upload.single(''), async (req, res) => {
     console.log("Body:", req.body);         // Lo
     const { title, refundUserId } = req.body;
     const accountData : any = { };
-
+    
     accountData.name = title
-
+    
     console.log(refundUserId)
-
+    
     if (refundUserId) {
       accountData.refundUserId = Number(refundUserId);
     }
-
+    
     const account = await prisma.expenseAccount.create({
       data: accountData
     });
@@ -440,18 +438,18 @@ app.post('/account', upload.single(''), async (req, res) => {
 })
 app.put('/account/:id', upload.single(''), async (req, res) => {
   const id = Number(req.params.id)
-
+  
   let account = await prisma.expenseAccount.findUnique({
     where: {
       id: id
     }
   });
-
+  
   const { title, refundUserId} = req.body
-
+  
   account.name = title
   account.refundUserId = Number(refundUserId)
-
+  
   const ret = await prisma.expenseAccount.update({
     where: {
       id : Number(req.params.id)
@@ -462,16 +460,16 @@ app.put('/account/:id', upload.single(''), async (req, res) => {
 })
 
 app.delete('/account/:id', async (req, res) => {
- try {
-  const user = await prisma.expenseAccount.delete({
-    where: {
-      id: Number(req.params.id)
-    }
-  })
-
-  res.json(user)
+  try {
+    const user = await prisma.expenseAccount.delete({
+      where: {
+        id: Number(req.params.id)
+      }
+    })
+    
+    res.json(user)
   } catch(error) {
-
+    
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
       // Check for foreign key constraint violation (P2003)
       if (error.code === 'P2003') {
@@ -491,7 +489,7 @@ app.delete('/account/:id', async (req, res) => {
 app.get('/isAdmin', async (req, res) => {
   const namespace = 'https://www.darakuta.com/api/role'
   const roles = res.locals.auth[namespace]
-
+  
   res.status(200).json({ isAdmin: roles.includes('Admin') })
 });
 

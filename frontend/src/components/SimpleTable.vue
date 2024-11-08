@@ -1,5 +1,5 @@
 <script setup>
-import { defineProps, ref, onMounted, watch } from "vue";
+import { defineProps, ref, onMounted, watch, defineModel } from "vue";
 import {
   FwbTable,
   FwbTableBody,
@@ -10,6 +10,7 @@ import {
   FwbButton,
 } from "flowbite-vue";
 import { sort } from "mathjs";
+import { prop } from "vue-class-component";
 
 const props = defineProps({
   header: {
@@ -25,39 +26,32 @@ const props = defineProps({
 
 const sortedColumn = ref(0);
 const sortDirection = ref("desc");
-const sortedItems = ref([]);
+
+const sortColumnIndex = defineModel('sortColumnIndex')
+const sortColumnOrder = defineModel('sortColumnOrder')
 
 onMounted(() => {
-  sortByColumn(2);
+  
 });
 
-watch(
-() => props.items,
-(newValue) => {
+// watch(
+// () => props.items,
+// (newValue) => {
   
-  if (!props.sortFunction) {
-    sortedItems.value = newValue
-  } else {
-    sortByColumn(sortedColumn.value)
-  }
-}
-);
+//   if (!props.sortFunction) {
+//     sortedItems.value = newValue
+//   } else {
+//     sortByColumn(sortedColumn.value)
+//   }
+// }
+// );
 
-function sortByColumn(columnIndex, userTriggered=false) {
-  if (!props.sortFunction) {
-    return;
+function sortByColumn(columnIndex) {
+  if (columnIndex > 5) {
+    return
   }
-  
-  
-  if (sortedColumn.value === columnIndex && userTriggered) {
-    sortDirection.value = sortDirection.value === "asc" ? "desc" : "asc";
-  }
-  
-  sortedColumn.value = columnIndex;
-  
-  sortedItems.value = props.sortFunction(columnIndex, sortDirection.value, [
-  ...props.items,
-  ]);
+  sortColumnIndex.value = columnIndex
+  sortColumnOrder.value = sortColumnOrder.value === 'asc' ? 'desc' : 'asc'
 }
 </script>
 
@@ -67,7 +61,7 @@ function sortByColumn(columnIndex, userTriggered=false) {
       <fwb-table-head-cell
       v-for="(name, index) in header"
       :key="name"
-      @click="sortByColumn(index, true)"
+      @click="sortByColumn(index)"
       class="cursor-pointer text-left px-4 py-2 font-semibold text-gray-700"
       >
       {{ name }}
@@ -84,7 +78,7 @@ function sortByColumn(columnIndex, userTriggered=false) {
     </fwb-table-head-cell>
   </fwb-table-head>
   <fwb-table-body>
-    <fwb-table-row v-for="item in sortedItems" :key="item.id">
+    <fwb-table-row v-for="item in props.items" :key="item.id">
       <template #default>
         <fwb-table-cell
         v-for="(value, index) in item.values"

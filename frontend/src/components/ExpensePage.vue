@@ -70,6 +70,8 @@
     <!-- Expenses Tables -->
     <SimpleTable
     v-show="activeTab === 'tab1' && !isLoading"
+    v-model:sortColumnIndex="sortColumnIndex"
+    v-model:sortColumnOrder="sortColumnOrder"
     :header="['Account', 'Author', 'Date', 'Title', 'Description', 'Amount', 'Receipt', 'Actions']"
     :items="filteredExpenses"
     :sortFunction="sortByColumn"
@@ -89,6 +91,8 @@
   
   <SimpleTable
   v-show="activeTab === 'tab2' && !isLoading"
+  v-model:sortColumnIndex="archivedSortColumnIndex"
+  v-model:sortColumnOrder="archivedSortColumnOrder"
   :header="['Account', 'Author', 'Date', 'Title', 'Description', 'Amount', 'Receipt', 'Actions']"
   :items="filteredArchivedExpenses"
   :sortFunction="sortByColumn"
@@ -113,7 +117,7 @@ import NavigationBar from "./NavigationBar.vue";
 import AddExpense from "./AddExpense.vue";
 import SimpleTable from "./SimpleTable.vue";
 import Spinner from "./SpinnerComponent.vue"; // Import the Spinner component
-import { ref, onMounted, computed } from "vue";
+import { ref, onMounted, computed, watch } from "vue";
 import { useAuth0 } from "@auth0/auth0-vue";
 import { Expense, Account } from "@/expenses/expenses";
 import { FwbButton } from "flowbite-vue"; // Add this import statement
@@ -128,6 +132,7 @@ const router = useRouter();
 const route = useRoute();
 const auth0 = useAuth0();
 const expenses = ref<Expense[]>([]);
+const archivedExpenses = ref<Expense[]>([]);
 
 const accounts = ref<Account[]>([])
 
@@ -154,6 +159,11 @@ const searchQuery = ref("");
 
 const scrollPosition = ref(0); // Holds the vertical scroll position
 
+const sortColumnIndex = ref(0)
+const sortColumnOrder = ref("asc")
+
+const archivedSortColumnIndex = ref(0)
+const archivedSortColumnOrder = ref("asc")
 
 
 enum ColumnType {
@@ -165,9 +175,9 @@ enum ColumnType {
 const columns = [
 { key: "account", label: "Account", colType: ColumnType.DEFAULT },
 { key: "author", label: "Author", colType: ColumnType.DEFAULT },
-{ key: "date", label: "Date", colType: ColumnType.DATE },
+{ key: "createdAt", label: "Date", colType: ColumnType.DATE },
 { key: "title", label: "Title", colType: ColumnType.DEFAULT },
-{ key: "description", label: "Description", colType: ColumnType.DEFAULT },
+{ key: "comment", label: "Description", colType: ColumnType.DEFAULT },
 { key: "amount", label: "Amount", colType: ColumnType.FLOAT },
 {
   key: "receipt",
@@ -180,11 +190,27 @@ const columns = [
 
 const baseUrl = process.env.VUE_APP_API_ADDR + "/expenses";
 
+watch(sortColumnIndex, async (_value) => {
+  await getAllExpenses()
+})
+watch(sortColumnOrder, async (_value) => {
+  router.push({ query: { search: searchQuery.value, orderColName: columns[sortColumnIndex.value].key.toString() ,order: sortColumnOrder.value, archived: activeTab.value === 'tab2' } });
+  await getAllExpenses()
+})
+watch(archivedSortColumnIndex, async (_value) => {
+  await getAllArchivedExpenses()
+})
+watch(archivedSortColumnOrder, async (_value) => {
+  router.push({ query: { search: searchQuery.value, orderColName: columns[archivedSortColumnIndex.value].key.toString() ,order: archivedSortColumnOrder.value, archived: activeTab.value === 'tab2' } });
+  await getAllArchivedExpenses()
+})
+
 const onSearch = async () => {
   if (searchQuery.value) {
-    router.push({ query: { search: searchQuery.value } });
+    router.push({ query: { search: searchQuery.value,orderColName: columns[archivedSortColumnIndex.value].key.toString() ,order: archivedSortColumnOrder.value, archived: activeTab.value === 'tab2'} });
   }
   await getAllExpenses();
+  await getAllArchivedExpenses()
 };
 
 function closeAddExpenseDialog() {
@@ -216,7 +242,7 @@ async function archiveExpense(id: number) {
   }
   
   try {
-    const expense = expenses.value.find((el) => {
+    const expense = archivedExpenses.value.find((el) => {
       return el.id === id;
     });
     
@@ -338,23 +364,13 @@ function prepareExpenses() {
 }
 
 function prepareArchivedExpenses() {
-  return expenses.value
+  return archivedExpenses.value
   .filter((el) => {
     return el.archived;
   })
 }
 const filteredArchivedExpenses = computed(() => {
   return prepareArchivedExpenses()
-  .filter((expense) => {
-    return (
-    expense.title.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-    (expense.comment &&
-    expense.comment.toLowerCase().includes(searchQuery.value.toLowerCase())) ||
-    (expense.account?.name &&
-    expense.account.name.toLowerCase().includes(searchQuery.value.toLowerCase())) ||
-    String(expense.id).includes(searchQuery.value.toLowerCase())
-    );
-  })
   .map((el) => ({
     id: el.id,
     values: [
@@ -393,7 +409,7 @@ async function editExpense(id: number, formData: FormData) {
     }
     
     const updatedExpense = await response.json();
-
+    
     // Find and update the specific expense in the array
     const index = expenses.value.findIndex(expense => expense.id === id);
     if (index !== -1) {
@@ -506,12 +522,40 @@ async function getAllExpenses() {
     const response = await axios.get(baseUrl, {
       headers: { Authorization: "Bearer " + token },
       params: {
-        search: searchQuery.value
+        search: searchQuery.value,
+        archived: false,
+        orderColName: columns[sortColumnIndex.value].key,
+        order: sortColumnOrder.value
       }
     });
     
     
     expenses.value = response.data;
+  } catch (err) {
+    console.error("Failed to fetch expenses:", err.message);
+  } finally {
+    isLoading.value = false;
+  }
+}
+async function getAllArchivedExpenses() {
+  try {
+    isLoading.value = true;
+    const token = await auth0.getAccessTokenSilently().catch(() => {
+      auth0.loginWithRedirect();
+    });
+    
+    const response = await axios.get(baseUrl, {
+      headers: { Authorization: "Bearer " + token },
+      params: {
+        search: searchQuery.value,
+        archived: true,
+        orderColName: columns[archivedSortColumnIndex.value].key,
+        order: archivedSortColumnOrder.value
+      }
+    });
+    
+    
+    archivedExpenses.value = response.data;
   } catch (err) {
     console.error("Failed to fetch expenses:", err.message);
   } finally {
@@ -550,11 +594,11 @@ async function handleEditExpense(id: number) {
   if (isAdding.value || isEditing.value) {
     return;
   }
-
+  
   scrollPosition.value = document.querySelector('.expenses-table').scrollTop;
-
+  
   console.log("scroll pos is " + scrollPosition.value )
-
+  
   
   const expense = expenses.value.find((exp) => exp.id === id);
   if (expense !== undefined) {
@@ -573,11 +617,46 @@ async function handleEditExpense(id: number) {
 onMounted(() => {
   getIsAdmin();
   getAllAccounts();
-
-  if (route.query.search) {
-    searchQuery.value = route.query.search.toString();
+  
+  if (route.query.archived === 'true') {
+    activeTab.value = 'tab2';
+    
+      sortColumnIndex.value = 2
+      sortColumnOrder.value = 'desc'
+    if (route.query.orderColName) {
+      archivedSortColumnIndex.value = columns.findIndex(col => col.key === route.query.orderColName)
+    } else {
+      archivedSortColumnIndex.value = 2;
+      archivedSortColumnOrder.value = 'desc'
+    }
+    
+    if (route.query.order) {
+      archivedSortColumnOrder.value = route.query.order.toString()
+    }
+  } else {
+    
+      archivedSortColumnIndex.value = 2;
+      archivedSortColumnOrder.value = 'desc'
+    if (route.query.orderColName) {
+      sortColumnIndex.value = columns.findIndex(col => col.key === route.query.orderColName)
+    } else {
+      sortColumnIndex.value = 2
+      sortColumnOrder.value = 'desc'
+    }
+    
+    if (route.query.order) {
+      sortColumnOrder.value = route.query.order.toString()
+    }
   }
+  
+  if (route.query.search) {
+    searchQuery.value = route.query.search.toString()
+  }
+  
+  
+  router.push({ query: { search: searchQuery.value,orderColName: columns[sortColumnIndex.value].key.toString() ,order: sortColumnOrder.value } });
   getAllExpenses();
-
+  getAllArchivedExpenses();
+  
 });
 </script>
