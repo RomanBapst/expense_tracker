@@ -207,7 +207,11 @@ watch(archivedSortColumnOrder, async (_value) => {
 
 const onSearch = async () => {
   if (searchQuery.value) {
-    router.push({ query: { search: searchQuery.value,orderColName: columns[archivedSortColumnIndex.value].key.toString() ,order: archivedSortColumnOrder.value, archived: activeTab.value === 'tab2'} });
+    if (activeTab.value === 'tab2') {
+      router.push({ query: { search: searchQuery.value,orderColName: columns[archivedSortColumnIndex.value].key.toString() ,order: archivedSortColumnOrder.value, archived: true} });
+    } else {
+      router.push({ query: { search: searchQuery.value,orderColName: columns[sortColumnIndex.value].key.toString() ,order: sortColumnOrder.value, archived: false} });
+    }
   }
   await getAllExpenses();
   await getAllArchivedExpenses()
@@ -621,8 +625,8 @@ onMounted(() => {
   if (route.query.archived === 'true') {
     activeTab.value = 'tab2';
     
-      sortColumnIndex.value = 2
-      sortColumnOrder.value = 'desc'
+    sortColumnIndex.value = 2
+    sortColumnOrder.value = 'desc'
     if (route.query.orderColName) {
       archivedSortColumnIndex.value = columns.findIndex(col => col.key === route.query.orderColName)
     } else {
@@ -635,8 +639,8 @@ onMounted(() => {
     }
   } else {
     
-      archivedSortColumnIndex.value = 2;
-      archivedSortColumnOrder.value = 'desc'
+    archivedSortColumnIndex.value = 2;
+    archivedSortColumnOrder.value = 'desc'
     if (route.query.orderColName) {
       sortColumnIndex.value = columns.findIndex(col => col.key === route.query.orderColName)
     } else {
