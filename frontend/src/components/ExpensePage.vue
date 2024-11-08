@@ -34,67 +34,55 @@
         <!-- Admin Controls -->
         <div v-if="isAdmin" class="flex justify-between mb-4">
           <fwb-button @click="showAddExpenseForm">Add New Expense</fwb-button>
-          <input
-          type="text"
-          v-model="searchQuery"
-          placeholder="Search expenses..."
-          @keyup.enter="onSearch" 
-          class="border rounded p-2"
-          />
+          <div class="relative flex items-center">
+            <input
+            type="text"
+            v-model="searchQuery"
+            placeholder="Search expenses..."
+            @keyup.enter="onSearch" 
+            class="border rounded p-2"
+            />
+            <button
+            v-if="searchQuery"
+            @click="clearSearch"
+            class="absolute -left-4 text-xl text-gray-500 hover:text-gray-700 focus:outline-none"
+            >
+            &times;
+          </button>
         </div>
-        
-        <div class="tabs mb-4 flex border-b border-gray-200">
-          <button
-          @click="activeTab = 'tab1'"
-          :class="{
-            'text-blue-600 border-b-2 border-blue-600': activeTab === 'tab1',
-            'text-gray-500 hover:text-gray-700': activeTab !== 'tab1'
-          }"
-          class="px-4 py-2 -mb-px focus:outline-none transition-colors duration-200"
-          >
-          Open Expenses
-        </button>
+      </div>
+      
+      <div class="tabs mb-4 flex border-b border-gray-200">
         <button
-        @click="activeTab = 'tab2'"
+        @click="activeTab = 'tab1'"
         :class="{
-          'text-blue-600 border-b-2 border-blue-600': activeTab === 'tab2',
-          'text-gray-500 hover:text-gray-700': activeTab !== 'tab2'
+          'text-blue-600 border-b-2 border-blue-600': activeTab === 'tab1',
+          'text-gray-500 hover:text-gray-700': activeTab !== 'tab1'
         }"
         class="px-4 py-2 -mb-px focus:outline-none transition-colors duration-200"
         >
-        Archived Expenses
+        Open Expenses
       </button>
-    </div>
-    
-    
-    <!-- Expenses Tables -->
-    <SimpleTable
-    v-show="activeTab === 'tab1' && !isLoading"
-    v-model:sortColumnIndex="sortColumnIndex"
-    v-model:sortColumnOrder="sortColumnOrder"
-    :header="['Account', 'Author', 'Date', 'Title', 'Description', 'Amount', 'Receipt', 'Actions']"
-    :items="filteredExpenses"
-    :sortFunction="sortByColumn"
-    >
-    <template #cell-6="{ item }">
-      <span v-if="item.receipt" class="cursor-pointer text-blue-500" @click="openReceipt(item.id)">
-        📎
-      </span>
-    </template>
-    <template #button1="{ item }">
-      <fwb-button @click="archiveExpense(item.id)" class="bg-blue-700">Archive</fwb-button>
-    </template>
-    <template #button2="{ item }">
-      <fwb-button @click="handleEditExpense(item.id)" class="bg-green-700">Edit</fwb-button>
-    </template>
-  </SimpleTable>
+      <button
+      @click="activeTab = 'tab2'"
+      :class="{
+        'text-blue-600 border-b-2 border-blue-600': activeTab === 'tab2',
+        'text-gray-500 hover:text-gray-700': activeTab !== 'tab2'
+      }"
+      class="px-4 py-2 -mb-px focus:outline-none transition-colors duration-200"
+      >
+      Archived Expenses
+    </button>
+  </div>
   
+  
+  <!-- Expenses Tables -->
   <SimpleTable
-  v-show="activeTab === 'tab2' && !isLoading"
-  v-model:sortColumnIndex="archivedSortColumnIndex"
-  v-model:sortColumnOrder="archivedSortColumnOrder"
+  v-show="activeTab === 'tab1' && !isLoading"
+  v-model:sortColumnIndex="sortColumnIndex"
+  v-model:sortColumnOrder="sortColumnOrder"
   :header="['Account', 'Author', 'Date', 'Title', 'Description', 'Amount', 'Receipt', 'Actions']"
-  :items="filteredArchivedExpenses"
+  :items="filteredExpenses"
   :sortFunction="sortByColumn"
   >
   <template #cell-6="{ item }">
@@ -103,8 +91,29 @@
     </span>
   </template>
   <template #button1="{ item }">
-    <fwb-button @click="restoreExpense(item.id)" class="bg-blue-700">Restore</fwb-button>
+    <fwb-button @click="archiveExpense(item.id)" class="bg-blue-700">Archive</fwb-button>
   </template>
+  <template #button2="{ item }">
+    <fwb-button @click="handleEditExpense(item.id)" class="bg-green-700">Edit</fwb-button>
+  </template>
+</SimpleTable>
+
+<SimpleTable
+v-show="activeTab === 'tab2' && !isLoading"
+v-model:sortColumnIndex="archivedSortColumnIndex"
+v-model:sortColumnOrder="archivedSortColumnOrder"
+:header="['Account', 'Author', 'Date', 'Title', 'Description', 'Amount', 'Receipt', 'Actions']"
+:items="filteredArchivedExpenses"
+:sortFunction="sortByColumn"
+>
+<template #cell-6="{ item }">
+  <span v-if="item.receipt" class="cursor-pointer text-blue-500" @click="openReceipt(item.id)">
+    📎
+  </span>
+</template>
+<template #button1="{ item }">
+  <fwb-button @click="restoreExpense(item.id)" class="bg-blue-700">Restore</fwb-button>
+</template>
 </SimpleTable>
 </div>
 </div>
@@ -189,6 +198,11 @@ const columns = [
 ];
 
 const baseUrl = process.env.VUE_APP_API_ADDR + "/expenses";
+
+function clearSearch() {
+  searchQuery.value = ""
+  onSearch()
+}
 
 watch(sortColumnIndex, async (_value) => {
   await getAllExpenses()
