@@ -260,7 +260,7 @@ async function archiveExpense(id: number) {
   }
   
   try {
-    const expense = archivedExpenses.value.find((el) => {
+    const expense = expenses.value.find((el) => {
       return el.id === id;
     });
     
@@ -280,7 +280,8 @@ async function archiveExpense(id: number) {
       formData.append("receipt", file.value);
     }
     
-    editExpense(id, formData);
+    await editExpense(id, formData);
+    getAllArchivedExpenses();
   } catch (err) {
     console.log(err);
   }
@@ -426,7 +427,7 @@ async function editExpense(id: number, formData: FormData) {
       throw new Error(`Error: ${response.status} - ${errorData.message}`);
     }
     
-    const updatedExpense = await response.json();
+    const updatedExpense : Expense = await response.json();
     
     // Find and update the specific expense in the array
     const index = expenses.value.findIndex(expense => expense.id === id);
@@ -487,7 +488,7 @@ function resetForm() {
 
 async function restoreExpense(id: number) {
   try {
-    let expense: Expense | undefined = expenses.value.find((el) => {
+    let expense: Expense | undefined = archivedExpenses.value.find((el) => {
       return el.id === id;
     });
     
@@ -502,7 +503,11 @@ async function restoreExpense(id: number) {
     formData.append("date", expense.createdAt);
     formData.append("archived", "false");
     
-    editExpense(id, formData);
+    await editExpense(id, formData);
+    getAllArchivedExpenses();
+
+
+
   } catch (err) {
     console.error("Failed to restore expense: ", err.message);
   }
