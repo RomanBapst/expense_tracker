@@ -48,7 +48,7 @@ const options: cors.CorsOptions = {
   ],
   credentials: true,
   methods: 'GET,HEAD,OPTIONS,PUT,PATCH,POST,DELETE',
-  origin: ["http://localhost:" + process.env.FRONTEND_PORT, "http://localhost"],
+  origin: ["http://localhost"],
   preflightContinue: false,
 };
 
