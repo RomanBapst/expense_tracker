@@ -13,6 +13,11 @@ import { connect } from 'http2';
 const path = require('path');
 const fs = require('fs');
 
+export interface RequestWithFiles extends Express.Request {
+  files: Express.Multer.File[];
+}
+
+
 
 // Configure Multer for file uploads
 const storage = multer.diskStorage({
@@ -207,20 +212,19 @@ app.delete('/users/:id', async (req, res) => {
   
 
 // Endpoint to add an expense with an attached file
-app.post('/expenses', upload.single('receipt'), async (req, res) => {
+app.post('/expenses', upload.array('receipts'), async (req, res) => {
   try {
-    // Type cast the request to RequestWithFile
-    const reqWithFile = req as RequestWithFile;
-    
+    const reqWithFiles = req as RequestWithFiles; // You'll define this type
+    const files = reqWithFiles.files as Express.Multer.File[];
+
     const user = await prisma.user.findFirstOrThrow({
       where: {
         email: res.locals.user
       }
     });
-    
+
     console.log("Found user " + user.email);
-    
-    
+
     const expenseData: any = {
       title: req.body.title,
       comment: req.body.description,
@@ -230,19 +234,23 @@ app.post('/expenses', upload.single('receipt'), async (req, res) => {
         connect: { id: user.id }
       },
     };
+
     const expenseAccountId = Number(req.body.expenseAccount);
     if (!isNaN(expenseAccountId)) {
       expenseData.account = {
         connect: { id: expenseAccountId }
       };
     }
-    
-    // If a file was uploaded, add file details to expenseData
-    if (reqWithFile.file) {
-      expenseData.receiptFilename = reqWithFile.file.filename;
-      expenseData.receiptPath = reqWithFile.file.path;
+
+    // Handle the uploaded files
+    if (files && files.length > 0) {
+      const firstFile = files[0];
+      expenseData.receiptFilename = firstFile.filename;
+      expenseData.receiptPath = firstFile.path;
+
+      console.log("Uploaded files:", files.map(f => f.originalname));
     }
-    
+
     const expense = await prisma.expense.create({
       data: expenseData,
       include: {
@@ -250,13 +258,14 @@ app.post('/expenses', upload.single('receipt'), async (req, res) => {
         account: true
       }
     });
-    
+
     res.json(expense);
   } catch (error) {
     console.error('Error adding expense:', error);
     res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });
+
 
 app.post('/expenses/:id/file', upload.single('file'), async (req, res) => {
   try {
