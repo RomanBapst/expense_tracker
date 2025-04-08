@@ -31,11 +31,18 @@ model Expense {
   amount Decimal @default(0)
   author User @relation(fields: [authorId], references: [id])
   authorId Int
-  receiptFilename String?
-  receiptPath    String?
+  receipts    Receipt[]  // 👈 New relation to multiple receipts
   archived Boolean @default(false)
   account ExpenseAccount? @relation(fields: [accountId], references: [id], onDelete: Restrict)
   accountId Int?
+}
+
+model Receipt {
+  id         Int      @id @default(autoincrement())
+  filename   String
+  path       String
+  expense    Expense  @relation(fields: [expenseId], references: [id])
+  expenseId  Int
 }
 
 model ExpenseAccount {
