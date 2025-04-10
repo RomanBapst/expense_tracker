@@ -6,6 +6,7 @@ export interface Expense {
     createdAt: string,
     receiptPath: string | undefined
     receiptFilename: string | undefined
+    receipts: Array<object>
     archived: boolean
     author : Author
     accountId: Number

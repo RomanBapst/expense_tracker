@@ -19,7 +19,7 @@
       v-model:amount="amount"
       v-model:date="date"
       v-model:accountId="expenseAccount"
-      :hasExistingReceipt="hasExistingReceipt"
+      :existingReceipts="existingReceipts"
       :isAdding="isAdding"
       :accountTypes="accounts"
       :removeExistingReceipt="removeExistingReceipt"
@@ -130,7 +130,7 @@ import { ref, onMounted, computed, watch } from "vue";
 import { useAuth0 } from "@auth0/auth0-vue";
 import { Expense, Account } from "@/expenses/expenses";
 import { FwbButton } from "flowbite-vue"; // Add this import statement
-import { exp, number, sortDependencies } from "mathjs";
+import { exp, number, sortDependencies, string } from "mathjs";
 import axios from 'axios';
 import { useRoute, useRouter } from 'vue-router';
 
@@ -154,13 +154,14 @@ const activeTab = ref("tab1");
 const isLoading = ref(false);
 const isUploading = ref(false);
 
-const file = ref<File | null>(null);
+const file = ref<File[] | null>([]);
 
 const title = ref("");
 const description = ref("");
 const amount = ref<string>("0");
 const date = ref(new Date().toISOString().split("T")[0]); // Current date in YYYY-MM-DD format
 const hasExistingReceipt = ref(false);
+const existingReceipts = ref<Array<object>>([])
 const removeExistingReceipt = ref(false);
 const expenseAccount = ref<string>("")
 
@@ -201,6 +202,7 @@ const baseUrl = process.env.VUE_APP_API_ADDR + "/expenses";
 
 function clearSearch() {
   searchQuery.value = ""
+  router.push({ query: { search: searchQuery.value, orderColName: columns[sortColumnIndex.value].key.toString() ,order: sortColumnOrder.value, archived: activeTab.value === 'tab2' } });
   onSearch()
 }
 
@@ -249,7 +251,7 @@ const filteredExpenses = computed(() => {
     Number(el.amount).toLocaleString("en-US"),
     el.receiptPath,
     ],
-    receipt: el.receiptPath,
+    receipt: el.receipts.length > 0,
   }));
 });
 
@@ -276,8 +278,11 @@ async function archiveExpense(id: number) {
     formData.append("archived", "true");
     
     // Append file if it exists
-    if (file.value) {
-      formData.append("receipt", file.value);
+    if (file.value?.length > 0) {
+      console.log("file lenght: " + file.value?.length)
+      file.value?.forEach((f, index) => {
+        formData.append("receipts", f);
+      });
     }
     
     await editExpense(id, formData);
@@ -332,7 +337,7 @@ async function openReceipt(receipt: string) {
   }
 }
 
-const handleAddExpense = (fileData: File | null, removeOldReceipt: Boolean = false) => {
+const handleAddExpense = (fileData: Array<File> | null, removedReceiptIds: Array<number> = []) => {
   file.value = fileData; // Update the file data in the parent component
   const formData = new FormData();
   formData.append("title", title.value);
@@ -344,14 +349,17 @@ const handleAddExpense = (fileData: File | null, removeOldReceipt: Boolean = fal
   
   console.log(expenseAccount.value)
   
-  // Append file if it exists
-  if (file.value) {
-    formData.append("receipt", file.value);
-  }
+    // Append file if it exists
+    if (file.value?.length > 0) {
+      file.value?.forEach((f, index) => {
+        console.log("adding with index: " + index)
+        formData.append("receipts", f);
+      });
+    }
   
   if (isEditing.value && editedExpenseId.value) {
-    if (removeOldReceipt) {
-      formData.append("removeReceipt", "true");
+    if (removedReceiptIds.length > 0) {
+      formData.append("removedReceiptIds", JSON.stringify(removedReceiptIds));
     }
     
     editExpense(editedExpenseId.value, formData);
@@ -374,6 +382,7 @@ function showAddExpenseForm() {
   date.value = new Date().toISOString().split("T")[0];
   isEditing.value = false;
   isAdding.value = true;
+  existingReceipts.value = []
 }
 
 function prepareExpenses() {
@@ -467,7 +476,7 @@ async function addExpense(formData: FormData) {
     }
     
     const newExpense = await response.json();
-    expenses.value.push(newExpense);  // Add the new expense directly to the array
+    getAllExpenses()
   } catch (err: any) {
     console.error(`Failed to add expense:`, err.message);
   } finally {
@@ -484,6 +493,7 @@ function resetForm() {
   date.value = new Date().toISOString().split("T")[0];
   isEditing.value = false;
   isAdding.value = false;
+  existingReceipts.value = []
 }
 
 async function restoreExpense(id: number) {
@@ -554,6 +564,8 @@ async function getAllExpenses() {
     
     
     expenses.value = response.data;
+
+
   } catch (err) {
     console.error("Failed to fetch expenses:", err.message);
   } finally {
@@ -634,6 +646,7 @@ async function handleEditExpense(id: number) {
     hasExistingReceipt.value = expense.receiptFilename !== null;
     removeExistingReceipt.value = false;
     expenseAccount.value = String(expense.accountId)
+    existingReceipts.value = expense.receipts
   }
 }
 
