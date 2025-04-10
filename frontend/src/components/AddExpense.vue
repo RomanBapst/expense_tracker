@@ -5,7 +5,7 @@
       @click="$emit('close')"
       >&times;</span
     >
-    <h2 v-if="props.isAdding" class="text-2xl font-bold mb-4">Add Expense1</h2>
+    <h2 v-if="props.isAdding" class="text-2xl font-bold mb-4">Add Expense</h2>
     <h2 v-if="!props.isAdding" class="text-2xl font-bold mb-4">Edit Expense</h2>
     <div class="mb-4">
       <label for="accountType" class="block text-sm font-medium text-gray-700"
