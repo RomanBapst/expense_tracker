@@ -13,54 +13,54 @@ import upload from '../multer';
 const router = Router();
 
 router.get('/expenses', async (req, res) => {
-    try {
-        const { search = '', archived, orderColName = 'title', order = 'asc' } = req.query;
+  try {
+    const { search = '', archived, orderColName = 'title', order = 'asc' } = req.query;
 
-        const sortOrder = order === 'desc' ? 'desc' : 'asc';
+    const sortOrder = order === 'desc' ? 'desc' : 'asc';
 
-        // Set up `orderBy` based on column type
-        const orderBy = (() => {
-            if (orderColName === 'account') {
-                return { account: { name: sortOrder } } as Prisma.ExpenseOrderByWithRelationInput;
-            } else if (orderColName === 'author') {
-                return { author: { name: sortOrder } } as Prisma.ExpenseOrderByWithRelationInput;
-            } else {
-                return { [orderColName.toString()]: sortOrder } as Prisma.ExpenseOrderByWithRelationInput;
-            }
-        })();
+    // Set up `orderBy` based on column type
+    const orderBy = (() => {
+      if (orderColName === 'account') {
+        return { account: { name: sortOrder } } as Prisma.ExpenseOrderByWithRelationInput;
+      } else if (orderColName === 'author') {
+        return { author: { name: sortOrder } } as Prisma.ExpenseOrderByWithRelationInput;
+      } else {
+        return { [orderColName.toString()]: sortOrder } as Prisma.ExpenseOrderByWithRelationInput;
+      }
+    })();
 
-        const expenses = await prisma.expense.findMany({
-            where: {
-                AND: [
-                    {
-                        OR: [
-                            { title: { contains: search.toString(), mode: 'insensitive' } },
-                            { comment: { contains: search.toString(), mode: 'insensitive' } },
-                            { author: { name: { contains: search.toString(), mode: 'insensitive' } } },
-                            { account: { name: { contains: search.toString(), mode: 'insensitive' } } }
-                        ]
-                    },
-                    archived !== undefined ? { archived: archived === 'true' } : {}
-                ]
-            },
-            orderBy,
-            include: {
-                author: true,
-                account: true,
-                receipts : {
-                    select: {
-                        id: true,
-                        filename: true
-                    }
-                }
-            }
-        });
+    const expenses = await prisma.expense.findMany({
+      where: {
+        AND: [
+          {
+            OR: [
+              { title: { contains: search.toString(), mode: 'insensitive' } },
+              { comment: { contains: search.toString(), mode: 'insensitive' } },
+              { author: { name: { contains: search.toString(), mode: 'insensitive' } } },
+              { account: { name: { contains: search.toString(), mode: 'insensitive' } } }
+            ]
+          },
+          archived !== undefined ? { archived: archived === 'true' } : {}
+        ]
+      },
+      orderBy,
+      include: {
+        author: true,
+        account: true,
+        receipts: {
+          select: {
+            id: true,
+            filename: true
+          }
+        }
+      }
+    });
 
-        res.json(expenses);
-    } catch (error) {
-        console.error('Error fetching expenses:', error);
-        res.status(500).json({ error: 'An error occurred while fetching expenses' });
-    }
+    res.json(expenses);
+  } catch (error) {
+    console.error('Error fetching expenses:', error);
+    res.status(500).json({ error: 'An error occurred while fetching expenses' });
+  }
 });
 // Endpoint to add an expense with an attached file
 router.post('/expenses', upload.array('receipts'), async (req, res) => {
@@ -137,6 +137,29 @@ router.post('/expenses/:id/file', upload.array('files'), async (req, res) => {
   }
 });
 
+router.get('/receipt/:id/file', async (req, res) => {
+  try {
+    // Retrieve the expense ID from the request params
+    const expenseId = req.params.id;
+    // Retrieve the expense from the database
+    const expense = await prisma.receipt.findUnique({
+      where: { id: parseInt(expenseId) }
+    });
+    if (!expense || !expense.path) {
+      return res.status(404).json({ error: 'File not found for this expense' });
+    }
+    const receiptPath = path.resolve(expense.path);
+    if (fs.existsSync(receiptPath)) {
+      res.sendFile(receiptPath);
+    } else {
+      res.status(404).json({ error: 'Receipt file not found' });
+    }
+  } catch (error) {
+    console.error('Error fetching file:', error);
+    res.status(500).json({ error: 'Error fetching file' });
+  }
+});
+
 
 // GET endpoint to fetch metadata of all receipt files for a specific expense
 router.get('/expenses/:id/files', async (req, res) => {
@@ -160,84 +183,84 @@ router.get('/expenses/:id/files', async (req, res) => {
 
 
 router.put('/expenses/:id', upload.array('receipts'), async (req, res) => {
-    const expenseId = Number(req.params.id);
-    const {
-      title,
-      description,
-      amount,
-      date,
-      archived,
-      expenseAccount,
-      removedReceiptIds = '[]'
-    } = req.body;
-  
-    // Parse the removedReceiptIds JSON string into an array of numbers
-    let toRemove: number[];
-    try {
-      toRemove = JSON.parse(removedReceiptIds);
-    } catch {
-      return res.status(400).json({ error: 'removedReceiptIds must be a JSON array of IDs' });
-    }
-  
-    // Fetch existing expense with its receipts
-    const expense = await prisma.expense.findUnique({
-      where: { id: expenseId },
-      include: { receipts: true }
-    });
-    if (!expense) {
-      return res.status(404).json({ error: 'Expense not found' });
-    }
-  
-    // 1) Remove requested receipts
-    for (const rid of toRemove) {
-      const receipt = expense.receipts.find(r => r.id === rid);
-      if (!receipt) continue;
-      const fullPath = path.resolve(receipt.path);
-      // delete file from disk
-      try { fs.unlinkSync(fullPath); } catch (err) { console.error(`Failed to delete ${fullPath}`, err); }
-      // delete record
-      await prisma.receipt.delete({ where: { id: rid } });
-    }
-  
-    // 2) Add any newly uploaded files
-    const uploaded = req.files as Express.Multer.File[];
-    for (const file of uploaded) {
-      await prisma.receipt.create({
-        data: {
-          filename: file.originalname,
-          path: file.path,
-          expenseId
-        }
-      });
-    }
-  
-    // 3) Build update payload for the expense itself
-    const data: any = {
-      title,
-      comment: description,
-      amount: parseFloat(amount),
-      createdAt: new Date(date),
-    };
-  
-    if (expenseAccount) {
-      const accId = Number(expenseAccount);
-      if (!isNaN(accId)) data.account = { connect: { id: accId } };
-    }
-  
-    if (archived !== undefined) {
-      data.archived = String(archived).toLowerCase() === 'true';
-    }
-  
-    // 4) Apply the update
-    const updated = await prisma.expense.update({
-      where: { id: expenseId },
-      data,
-      include: {
-        receipts: true // Include updated receipts in the response
+  const expenseId = Number(req.params.id);
+  const {
+    title,
+    description,
+    amount,
+    date,
+    archived,
+    expenseAccount,
+    removedReceiptIds = '[]'
+  } = req.body;
+
+  // Parse the removedReceiptIds JSON string into an array of numbers
+  let toRemove: number[];
+  try {
+    toRemove = JSON.parse(removedReceiptIds);
+  } catch {
+    return res.status(400).json({ error: 'removedReceiptIds must be a JSON array of IDs' });
+  }
+
+  // Fetch existing expense with its receipts
+  const expense = await prisma.expense.findUnique({
+    where: { id: expenseId },
+    include: { receipts: true }
+  });
+  if (!expense) {
+    return res.status(404).json({ error: 'Expense not found' });
+  }
+
+  // 1) Remove requested receipts
+  for (const rid of toRemove) {
+    const receipt = expense.receipts.find(r => r.id === rid);
+    if (!receipt) continue;
+    const fullPath = path.resolve(receipt.path);
+    // delete file from disk
+    try { fs.unlinkSync(fullPath); } catch (err) { console.error(`Failed to delete ${fullPath}`, err); }
+    // delete record
+    await prisma.receipt.delete({ where: { id: rid } });
+  }
+
+  // 2) Add any newly uploaded files
+  const uploaded = req.files as Express.Multer.File[];
+  for (const file of uploaded) {
+    await prisma.receipt.create({
+      data: {
+        filename: file.originalname,
+        path: file.path,
+        expenseId
       }
     });
-  
-    res.json(updated);
+  }
+
+  // 3) Build update payload for the expense itself
+  const data: any = {
+    title,
+    comment: description,
+    amount: parseFloat(amount),
+    createdAt: new Date(date),
+  };
+
+  if (expenseAccount) {
+    const accId = Number(expenseAccount);
+    if (!isNaN(accId)) data.account = { connect: { id: accId } };
+  }
+
+  if (archived !== undefined) {
+    data.archived = String(archived).toLowerCase() === 'true';
+  }
+
+  // 4) Apply the update
+  const updated = await prisma.expense.update({
+    where: { id: expenseId },
+    data,
+    include: {
+      receipts: true // Include updated receipts in the response
+    }
+  });
+
+  res.json(updated);
 })
 
 router.delete('/expenses/:id', async (req, res) => {
@@ -247,9 +270,9 @@ router.delete('/expenses/:id', async (req, res) => {
         id: Number(req.params.id)
       }
     })
-    
+
     res.json(user)
-  } catch(error) {
+  } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
       // Check for foreign key constraint violation (P2003)
       if (error.code === 'P2003') {
