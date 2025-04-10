@@ -63,3 +63,10 @@ model User {
   expenses Expense[]
   expenseAccounts ExpenseAccount[]
 }
+
+model Migration {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  createdAt DateTime @default(now())
+}
+
