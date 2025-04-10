@@ -356,14 +356,6 @@ async function archiveExpense(id: number) {
     formData.append("date", expense.createdAt);
     formData.append("archived", "true");
 
-    // Append file if it exists
-    if (file.value?.length > 0) {
-      console.log("file lenght: " + file.value?.length);
-      file.value?.forEach((f, index) => {
-        formData.append("receipts", f);
-      });
-    }
-
     await editExpense(id, formData);
     getAllArchivedExpenses();
   } catch (err) {
