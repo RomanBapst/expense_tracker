@@ -102,16 +102,28 @@
             </span>
           </template>
           <template #button1="{ item }">
-            <Spinner
-              v-if="uploadingExpenseIds.has(item.id)"
-              class="w-5 h-5 text-blue-600"
-            />
-            <fwb-button v-else @click="archiveExpense(item.id)" class="bg-blue-700">
-              Archive
-            </fwb-button>
+            <div
+              class="flex items-center justify-center"
+            >
+              <Spinner
+                v-if="uploadingExpenseIds.has(item.id)"
+                class="w-4 h-4 text-blue-600"
+                style="margin: 0; padding: 0"
+              />
+              <fwb-button
+                v-else
+                @click="archiveExpense(item.id)"
+                class="bg-blue-700"
+              >
+                Archive
+              </fwb-button>
+            </div>
           </template>
+
           <template #button2="{ item }">
-            <fwb-button @click="handleEditExpense(item.id)" class="bg-green-700"
+            <fwb-button
+              @click="handleEditExpense(item.id)"
+              class="bg-green-700"
               >Edit</fwb-button
             >
           </template>
@@ -197,9 +209,8 @@ const router = useRouter();
 const route = useRoute();
 const auth0 = useAuth0();
 
-const showError = ref(false)
-const errorMessage = ref('')
-
+const showError = ref(false);
+const errorMessage = ref("");
 
 const expenses = ref<Expense[]>([]);
 const archivedExpenses = ref<Expense[]>([]);
@@ -263,10 +274,9 @@ const columns = [
 
 const baseUrl = process.env.VUE_APP_API_ADDR + "/expenses";
 
-
 function displayError(message: string) {
-  errorMessage.value = message
-  showError.value = true
+  errorMessage.value = message;
+  showError.value = true;
 }
 
 function clearSearch() {
@@ -551,7 +561,7 @@ async function editExpense(id: number, formData: FormData) {
     }
   } catch (err) {
     console.error(`Failed to edit expense:`, err.message);
-    displayError(err.message)
+    displayError(err.message);
   } finally {
     uploadingExpenseIds.value.delete(id);
     isUploading.value = false;
@@ -585,7 +595,7 @@ async function addExpense(formData: FormData) {
     getAllExpenses();
   } catch (err: any) {
     console.error(`Failed to add expense:`, err.message);
-    displayError(err.message)
+    displayError(err.message);
   } finally {
     isUploading.value = false;
     resetForm();
@@ -667,7 +677,7 @@ async function getAllExpenses() {
 
     expenses.value = response.data;
   } catch (err) {
-    displayError(err.message)
+    displayError(err.message);
   } finally {
     isLoading.value = false;
   }
@@ -719,7 +729,7 @@ async function getAllAccounts() {
     accounts.value = data;
   } catch (err) {
     console.error("Failed to fetch expenses:", err.message);
-    displayError(err.message)
+    displayError(err.message);
   } finally {
     isLoading.value = false;
   }
