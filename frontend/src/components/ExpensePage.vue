@@ -102,9 +102,13 @@
             </span>
           </template>
           <template #button1="{ item }">
-            <fwb-button @click="archiveExpense(item.id)" class="bg-blue-700"
-              >Archive</fwb-button
-            >
+            <Spinner
+              v-if="uploadingExpenseIds.has(item.id)"
+              class="w-5 h-5 text-blue-600"
+            />
+            <fwb-button v-else @click="archiveExpense(item.id)" class="bg-blue-700">
+              Archive
+            </fwb-button>
           </template>
           <template #button2="{ item }">
             <fwb-button @click="handleEditExpense(item.id)" class="bg-green-700"
@@ -148,23 +152,28 @@
       </div>
     </div>
   </div>
-  <div v-if="receiptViewerOpen" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-  <div class="bg-white p-4 rounded shadow-lg max-w-md w-full">
-    <h3 class="text-lg font-semibold mb-2">Receipts</h3>
-    <ul class="mb-4">
-      <li
-        v-for="(receipt, index) in selectedReceipts"
-        :key="index"
-        class="text-blue-500 hover:underline cursor-pointer"
-        @click="displayReceipt(receipt.id)"
-      >
-        {{ receipt.name }}
-      </li>
-    </ul>
-    <button @click="receiptViewerOpen = false" class="text-sm text-gray-700 underline">Close</button>
+  <div
+    v-if="receiptViewerOpen"
+    class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center"
+  >
+    <div class="bg-white p-4 rounded shadow-lg max-w-md w-full">
+      <h3 class="text-lg font-semibold mb-2">Receipts</h3>
+      <ul class="mb-4">
+        <li
+          v-for="(receipt, index) in selectedReceipts"
+          :key="index"
+          class="text-blue-500 hover:underline cursor-pointer"
+          @click="displayReceipt(receipt.id)"
+        >
+          {{ receipt.name }}
+        </li>
+      </ul>
+      <button @click="receiptViewerOpen = false" class="text-sm text-gray-700 underline">
+        Close
+      </button>
+    </div>
   </div>
-</div>
-
+  <ErrorPopup :message="errorMessage" :show="showError" @close="showError = false" />
 </template>
 
 <script setup lang="ts">
@@ -182,9 +191,16 @@ import { useRoute, useRouter } from "vue-router";
 
 import { isAdmin, getIsAdmin } from "@/utils/authUtils";
 
+import ErrorPopup from "./ErrorPopup.vue";
+
 const router = useRouter();
 const route = useRoute();
 const auth0 = useAuth0();
+
+const showError = ref(false)
+const errorMessage = ref('')
+
+
 const expenses = ref<Expense[]>([]);
 const archivedExpenses = ref<Expense[]>([]);
 
@@ -223,6 +239,7 @@ const archivedSortColumnOrder = ref("asc");
 const receiptViewerOpen = ref(false);
 const selectedReceipts = ref<Array<{ url: string; id: string }>>([]);
 
+const uploadingExpenseIds = ref<Set<number>>(new Set());
 
 enum ColumnType {
   DEFAULT = 1,
@@ -245,6 +262,12 @@ const columns = [
 ];
 
 const baseUrl = process.env.VUE_APP_API_ADDR + "/expenses";
+
+
+function displayError(message: string) {
+  errorMessage.value = message
+  showError.value = true
+}
 
 function clearSearch() {
   searchQuery.value = "";
@@ -329,7 +352,7 @@ const filteredExpenses = computed(() => {
       el.title,
       el.comment,
       Number(el.amount).toLocaleString("en-US"),
-      0
+      0,
     ],
     receipt: el.receipts.length > 0,
   }));
@@ -404,7 +427,7 @@ const displayReceipt = async (id: string) => {
 
   const blob = await res.blob();
   const url = URL.createObjectURL(blob);
-  window.open(url, '_blank');
+  window.open(url, "_blank");
 };
 
 function openReceipt(expenseId: number) {
@@ -413,11 +436,10 @@ function openReceipt(expenseId: number) {
 
   selectedReceipts.value = expense.receipts.map((r) => ({
     name: r.filename || r.name || "receipt",
-    id: r.id
+    id: r.id,
   }));
   receiptViewerOpen.value = true;
 }
-
 
 const handleAddExpense = (
   fileData: Array<File> | null,
@@ -490,7 +512,7 @@ const filteredArchivedExpenses = computed(() => {
       el.title,
       el.comment,
       Number(el.amount).toLocaleString("en-US"),
-      0
+      0,
     ],
     receipt: el.receipts.length > 0,
   }));
@@ -498,6 +520,7 @@ const filteredArchivedExpenses = computed(() => {
 
 async function editExpense(id: number, formData: FormData) {
   try {
+    uploadingExpenseIds.value.add(id);
     isUploading.value = true;
     const token = await auth0.getAccessTokenSilently();
 
@@ -528,7 +551,9 @@ async function editExpense(id: number, formData: FormData) {
     }
   } catch (err) {
     console.error(`Failed to edit expense:`, err.message);
+    displayError(err.message)
   } finally {
+    uploadingExpenseIds.value.delete(id);
     isUploading.value = false;
     resetForm();
   }
@@ -560,6 +585,7 @@ async function addExpense(formData: FormData) {
     getAllExpenses();
   } catch (err: any) {
     console.error(`Failed to add expense:`, err.message);
+    displayError(err.message)
   } finally {
     isUploading.value = false;
     resetForm();
@@ -641,7 +667,7 @@ async function getAllExpenses() {
 
     expenses.value = response.data;
   } catch (err) {
-    console.error("Failed to fetch expenses:", err.message);
+    displayError(err.message)
   } finally {
     isLoading.value = false;
   }
@@ -693,6 +719,7 @@ async function getAllAccounts() {
     accounts.value = data;
   } catch (err) {
     console.error("Failed to fetch expenses:", err.message);
+    displayError(err.message)
   } finally {
     isLoading.value = false;
   }
