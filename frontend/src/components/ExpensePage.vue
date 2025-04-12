@@ -76,7 +76,7 @@
 
         <!-- Expenses Tables -->
         <SimpleTable
-          v-show="activeTab === 'tab1' && !isLoading"
+          v-show="activeTab === 'tab1'"
           v-model:sortColumnIndex="sortColumnIndex"
           v-model:sortColumnOrder="sortColumnOrder"
           :header="[
@@ -130,7 +130,7 @@
         </SimpleTable>
 
         <SimpleTable
-          v-show="activeTab === 'tab2' && !isLoading"
+          v-show="activeTab === 'tab2'"
           v-model:sortColumnIndex="archivedSortColumnIndex"
           v-model:sortColumnOrder="archivedSortColumnOrder"
           :header="[
