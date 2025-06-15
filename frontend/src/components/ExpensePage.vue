@@ -441,9 +441,13 @@ const displayReceipt = async (id: string) => {
 };
 
 function openReceipt(expenseId: number) {
-  const expense = expenses.value.find((e) => e.id === expenseId);
-  if (!expense || !expense.receipts.length) return;
+  let expense = expenses.value.find((e) => e.id === expenseId);
+  if (!expense || !expense.receipts.length) {
+    expense = archivedExpenses.value.find((e) => e.id === expenseId);
+  }
 
+
+  if (!expense || !expense.receipts.length) return;
   selectedReceipts.value = expense.receipts.map((r) => ({
     name: r.filename || r.name || "receipt",
     id: r.id,
