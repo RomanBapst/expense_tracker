@@ -52,9 +52,9 @@ import { ref, onMounted, computed } from "vue";
 import { useAuth0 } from "@auth0/auth0-vue";
 import { Account } from "@/expenses/expenses";
 
-const baseUrl = process.env.VUE_APP_API_ADDR + "/users";
-const baseUrlAccount = process.env.VUE_APP_API_ADDR + "/account";
-const baseUrlUser = process.env.VUE_APP_API_ADDR + "/users";
+const baseUrl = import.meta.env.VITE_APP_API_ADDR + "/users";
+const baseUrlAccount = import.meta.env.VITE_APP_API_ADDR + "/account";
+const baseUrlUser = import.meta.env.VITE_APP_API_ADDR + "/users";
 
 const auth0 = useAuth0();
 

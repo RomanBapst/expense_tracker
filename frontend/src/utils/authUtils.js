@@ -14,7 +14,7 @@ export async function getIsAdmin() {
       headers: { Authorization: "Bearer " + token },
     };
 
-    const uri = process.env.VUE_APP_API_ADDR + '/isAdmin';
+    const uri = import.meta.env.VITE_APP_API_ADDR + '/isAdmin';
 
     console.log("fetching from uri " + uri)
 

@@ -27,7 +27,7 @@ const routes = [
 // keep it simple for now.
 const router = createRouter({
   // 4. Provide the history implementation to use. We are using the hash history for simplicity here.
-  history: createWebHistory(process.env.VUE_APP_LOCAL_PATH),
+  history: createWebHistory(import.meta.env.VITE_APP_LOCAL_PATH),
   routes, // short for `routes: routes`
 })
 
@@ -39,14 +39,14 @@ app.use(router)
 
 app.use(
   createAuth0({
-    domain: process.env.VUE_APP_DOMAIN,
-    clientId: process.env.VUE_APP_CLIENT_ID,
+    domain: import.meta.env.VITE_APP_DOMAIN,
+    clientId: import.meta.env.VITE_APP_CLIENT_ID,
     cacheLocation: 'localstorage',
     useRefreshTokens: true,
     authorizationParams: {
       redirect_uri: window.location.origin,
-      audience: process.env.VUE_APP_AUDIENCE,
-      scope: process.env.VUE_APP_SCOPE
+      audience: import.meta.env.VITE_APP_AUDIENCE,
+      scope: import.meta.env.VITE_APP_SCOPE
     }
   })
 );

@@ -272,7 +272,7 @@ const columns = [
   },
 ];
 
-const baseUrl = process.env.VUE_APP_API_ADDR + "/expenses";
+const baseUrl = import.meta.env.VITE_APP_API_ADDR + "/expenses";
 
 function displayError(message: string) {
   errorMessage.value = message;
@@ -424,7 +424,7 @@ function sortByColumn(index: number, sortDirection: string, sortedItems: Array<a
 const displayReceipt = async (id: string) => {
   const token = await auth0.getAccessTokenSilently();
 
-  const res = await fetch(`${process.env.VUE_APP_API_ADDR}/receipt/${id}/file`, {
+  const res = await fetch(`${import.meta.env.VITE_APP_API_ADDR}/receipt/${id}/file`, {
     headers: {
       Authorization: `Bearer ${token}`,
     },
@@ -718,7 +718,7 @@ async function getAllAccounts() {
       auth0.loginWithRedirect();
     });
 
-    const baseUrl = process.env.VUE_APP_API_ADDR + "/account";
+    const baseUrl = import.meta.env.VITE_APP_API_ADDR + "/account";
 
     const response = await fetch(baseUrl, {
       headers: { Authorization: "Bearer " + token },

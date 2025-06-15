@@ -10,4 +10,4 @@ COPY . .
 
 EXPOSE 80
 
-ENTRYPOINT [ "npm", "run", "serve" ]
+ENTRYPOINT [ "npm", "run", "dev" ]
