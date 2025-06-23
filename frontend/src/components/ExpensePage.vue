@@ -19,13 +19,19 @@
         v-model:amount="amount"
         v-model:date="date"
         v-model:accountId="expenseAccount"
+        v-model:vendorId="selectedVendorId"
+        v-model:bankAccountId="selectedBankAccountId"
         :existingReceipts="existingReceipts"
         :isAdding="isAdding"
         :accountTypes="accounts"
         :removeExistingReceipt="removeExistingReceipt"
         :file="file"
+        :qbPaymentAccounts="prepareBankAccounts"
+        :qbExpenseAccounts="prepareExpenseAccounts"
+        :qbVendors="prepareQbVendors"
         @close="closeAddExpenseDialog"
         @submitClicked="handleAddExpense"
+        @qbSyncClicked="handleQbSync"
       />
 
       <!-- Main Content Area -->
@@ -102,29 +108,26 @@
             </span>
           </template>
           <template #button1="{ item }">
-            <div
-              class="flex items-center justify-center"
-            >
+            <div class="flex items-center justify-center">
               <Spinner
                 v-if="uploadingExpenseIds.has(item.id)"
                 class="w-4 h-4 text-blue-600"
                 style="margin: 0; padding: 0"
               />
-              <fwb-button
-                v-else
-                @click="archiveExpense(item.id)"
-                class="bg-blue-700"
-              >
+              <fwb-button v-else @click="archiveExpense(item.id)" class="bg-blue-700">
                 Archive
               </fwb-button>
             </div>
           </template>
 
           <template #button2="{ item }">
-            <fwb-button
-              @click="handleEditExpense(item.id)"
-              class="bg-green-700"
+            <fwb-button @click="handleEditExpense(item.id)" class="bg-green-700"
               >Edit</fwb-button
+            >
+          </template>
+          <template #button3="{ item }">
+            <fwb-button @click="handleSyncWithQuickbooks(item.id)" class="bg-yellow-700"
+              >QB</fwb-button
             >
           </template>
         </SimpleTable>
@@ -195,7 +198,13 @@ import SimpleTable from "./SimpleTable.vue";
 import Spinner from "./SpinnerComponent.vue"; // Import the Spinner component
 import { ref, onMounted, computed, watch } from "vue";
 import { useAuth0 } from "@auth0/auth0-vue";
-import { Expense, Account } from "@/expenses/expenses";
+import {
+  Expense,
+  Account,
+  QBAccount,
+  QBVendor,
+  createExpensePayload,
+} from "@/expenses/expenses";
 import { FwbButton } from "flowbite-vue"; // Add this import statement
 import { exp, number, sortDependencies, string } from "mathjs";
 import axios from "axios";
@@ -204,6 +213,7 @@ import { useRoute, useRouter } from "vue-router";
 import { isAdmin, getIsAdmin } from "@/utils/authUtils";
 
 import ErrorPopup from "./ErrorPopup.vue";
+import AddQuickbooksExpense from "./AddQuickbooksExpense.vue";
 
 const router = useRouter();
 const route = useRoute();
@@ -237,6 +247,9 @@ const existingReceipts = ref<Array<object>>([]);
 const removeExistingReceipt = ref(false);
 const expenseAccount = ref<string>("");
 
+const selectedVendorId = ref<string>("");
+const selectedBankAccountId = ref<string>("");
+
 const searchQuery = ref("");
 
 const scrollPosition = ref(0); // Holds the vertical scroll position
@@ -251,6 +264,12 @@ const receiptViewerOpen = ref(false);
 const selectedReceipts = ref<Array<{ url: string; id: string }>>([]);
 
 const uploadingExpenseIds = ref<Set<number>>(new Set());
+
+const qbBankAccounts = ref<QBAccount[]>([]);
+const baseUrlQbAccounts = import.meta.env.VITE_APP_API_ADDR + "/getAccounts";
+const qbVendors = ref<QBVendor[]>([]);
+const baseUrlQbVendors = import.meta.env.VITE_APP_API_ADDR + "/getVendors";
+const baseUrlQbExpense = import.meta.env.VITE_APP_API_ADDR + "/createExpense";
 
 enum ColumnType {
   DEFAULT = 1,
@@ -273,6 +292,33 @@ const columns = [
 ];
 
 const baseUrl = import.meta.env.VITE_APP_API_ADDR + "/expenses";
+
+const prepareBankAccounts = computed(() => {
+  return qbBankAccounts.value
+    .filter((el) => {
+      return el.type === "Bank";
+    })
+    .map((el) => ({
+      id: el.id,
+      name: el.name,
+    }));
+});
+const prepareExpenseAccounts = computed(() => {
+  return qbBankAccounts.value
+    .filter((el) => {
+      return el.type === "Expense";
+    })
+    .map((el) => ({
+      id: el.id,
+      name: el.name,
+    }));
+});
+const prepareQbVendors = computed(() => {
+  return qbVendors.value.map((el) => ({
+    id: el.id,
+    name: el.name,
+  }));
+});
 
 function displayError(message: string) {
   errorMessage.value = message;
@@ -446,7 +492,6 @@ function openReceipt(expenseId: number) {
     expense = archivedExpenses.value.find((e) => e.id === expenseId);
   }
 
-
   if (!expense || !expense.receipts.length) return;
   selectedReceipts.value = expense.receipts.map((r) => ({
     name: r.filename || r.name || "receipt",
@@ -454,6 +499,25 @@ function openReceipt(expenseId: number) {
   }));
   receiptViewerOpen.value = true;
 }
+
+const handleQbSync = (expenses: Array<any>) => {
+  const expenseAccountIds = expenses.map((e) => e.accountId);
+  const amounts = expenses.map((e) => e.amount);
+
+  const payload = createExpensePayload({
+    date: new Date(date.value).toISOString().split("T")[0],
+    vendorId: selectedVendorId.value,
+    accountId: selectedBankAccountId.value,
+    expenseAccountIds,
+    amounts,
+    privateNote: description.value,
+    paymentType: "Cash", // or 'CreditCard'
+  });
+
+  console.log("payload", payload);
+
+  postQbExpense(payload);
+};
 
 const handleAddExpense = (
   fileData: Array<File> | null,
@@ -739,6 +803,8 @@ async function getAllAccounts() {
   }
 }
 
+async function handleSyncWithQuickbooks(id: number) {}
+
 async function handleEditExpense(id: number) {
   if (isAdding.value || isEditing.value) {
     return;
@@ -766,6 +832,8 @@ async function handleEditExpense(id: number) {
 onMounted(() => {
   getIsAdmin();
   getAllAccounts();
+  getqbAccounts();
+  getQbVendors();
 
   if (route.query.archived === "true") {
     activeTab.value = "tab2";
@@ -815,4 +883,83 @@ onMounted(() => {
   getAllExpenses();
   getAllArchivedExpenses();
 });
+
+async function getqbAccounts() {
+  try {
+    const token = await auth0.getAccessTokenSilently().catch(() => {
+      auth0.loginWithRedirect();
+    });
+
+    const response = await fetch(baseUrlQbAccounts, {
+      headers: { Authorization: "Bearer " + token },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`Error: ${response.status} - ${errorData.message}`);
+    }
+
+    const data = await response.json();
+    qbBankAccounts.value = data.map((el: any) => ({
+      id: Number(el.Id),
+      name: el.Name,
+      type: el.AccountType,
+    }));
+  } catch (err) {
+    console.log(err.message);
+  }
+}
+async function getQbVendors() {
+  try {
+    const token = await auth0.getAccessTokenSilently().catch(() => {
+      auth0.loginWithRedirect();
+    });
+
+    const response = await fetch(baseUrlQbVendors, {
+      headers: { Authorization: "Bearer " + token },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`Error: ${response.status} - ${errorData.message}`);
+    }
+
+    const data = await response.json();
+    qbVendors.value = data.map((el: any) => ({
+      id: Number(el.Id),
+      name: el.DisplayName,
+    }));
+  } catch (err) {
+    console.log(err.message);
+  }
+}
+async function postQbExpense(payload: Any) {
+  try {
+    const token = await auth0.getAccessTokenSilently().catch(() => {
+      auth0.loginWithRedirect();
+    });
+
+    const response = await fetch(baseUrlQbExpense, {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer " + token,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`Error: ${response.status} - ${errorData.message}`);
+    }
+
+    const data = await response.json();
+    qbVendors.value = data.map((el: any) => ({
+      id: Number(el.Id),
+      name: el.DisplayName,
+    }));
+  } catch (err) {
+    console.log(err.message);
+  }
+}
 </script>

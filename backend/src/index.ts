@@ -3,6 +3,7 @@ import { Request as JWTRequest } from "express-jwt";
 import { Prisma } from '@prisma/client';
 import myCors from './cors';
 import expenseRoute from './routes/expenseRoute';
+import quickbooksAuth from './routes/quickbooksAuth';
 import { checkJwt } from "./authz";
 import prisma from './prisma';
 import upload from './multer';
@@ -17,22 +18,23 @@ const app = express()
 app.use(myCors);
 
 app.use(express.json())
+app.use("/", quickbooksAuth);
 app.use(
   checkJwt,
   function (req: JWTRequest, res: express.Response, next) {
-    
+
     res.locals.user = req.auth?.email
     res.locals.auth = req.auth
-    
+
     console.log(req.auth)
-    
+
     prisma.user.findFirstOrThrow({
       where: {
         email: req.auth?.email
       }
     }).then((user) => {
       console.log(user)
-      
+
       if (req.auth?.email != user.email) {
         return res.sendStatus(401);
       }
@@ -54,27 +56,27 @@ app.get('/users', async (req, res) => {
     console.log(error)
     res.status(500).json({ success: false, error: 'Internal server error' });
   })
-  
+
 })
 
 app.post('/users', upload.single('receipt'), async (req, res) => {
   try {
-    
-    let data : any = {
+
+    let data: any = {
       name: req.body.name,
-      email : req.body.email
+      email: req.body.email
     }
-    
+
     const user = await prisma.user.create({
       data: data
     })
-    
+
     res.json(user)
-    
-  } catch(error) {
+
+  } catch (error) {
     res.status(500).json({ success: false, error: 'Internal server error' });
   }
-  
+
 })
 
 
@@ -85,10 +87,10 @@ app.delete('/users/:id', async (req, res) => {
         id: Number(req.params.id)
       }
     })
-    
+
     res.json(user)
-  } catch(error) {
-    
+  } catch (error) {
+
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
       // Check for foreign key constraint violation (P2003)
       if (error.code === 'P2003') {
@@ -104,7 +106,7 @@ app.delete('/users/:id', async (req, res) => {
   }
 })
 
-  
+
 
 
 
@@ -123,20 +125,20 @@ app.post('/account', upload.single(''), async (req, res) => {
     console.log("Headers:", req.headers);   // Log the request headers
     console.log("Body:", req.body);         // Lo
     const { title, refundUserId } = req.body;
-    const accountData : any = { };
-    
+    const accountData: any = {};
+
     accountData.name = title
-    
+
     console.log(refundUserId)
-    
+
     if (refundUserId) {
       accountData.refundUserId = Number(refundUserId);
     }
-    
+
     const account = await prisma.expenseAccount.create({
       data: accountData
     });
-    
+
     res.json(account);
   } catch (error) {
     console.error(error);
@@ -145,21 +147,21 @@ app.post('/account', upload.single(''), async (req, res) => {
 })
 app.put('/account/:id', upload.single(''), async (req, res) => {
   const id = Number(req.params.id)
-  
+
   let account = await prisma.expenseAccount.findUnique({
     where: {
       id: id
     }
   });
-  
-  const { title, refundUserId} = req.body
-  
+
+  const { title, refundUserId } = req.body
+
   account.name = title
   account.refundUserId = Number(refundUserId)
-  
+
   const ret = await prisma.expenseAccount.update({
     where: {
-      id : Number(req.params.id)
+      id: Number(req.params.id)
     },
     data: account
   })
@@ -173,10 +175,10 @@ app.delete('/account/:id', async (req, res) => {
         id: Number(req.params.id)
       }
     })
-    
+
     res.json(user)
-  } catch(error) {
-    
+  } catch (error) {
+
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
       // Check for foreign key constraint violation (P2003)
       if (error.code === 'P2003') {
@@ -196,7 +198,7 @@ app.delete('/account/:id', async (req, res) => {
 app.get('/isAdmin', async (req, res) => {
   const namespace = 'https://www.darakuta.com/api/role'
   const roles = res.locals.auth[namespace]
-  
+
   res.status(200).json({ isAdmin: roles.includes('Admin') })
 });
 

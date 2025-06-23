@@ -24,3 +24,54 @@ export interface Account {
   name: string,
   refundUserId: number | undefined
 }
+
+export interface QBAccount {
+  id: Number,
+  name: string
+  type: string
+}
+
+
+export interface QBVendor {
+  id: Number,
+  name: string
+}
+
+
+export function createExpensePayload(args: {
+  date: string;
+  vendorId: string;
+  accountId: string; // payment account ID (bank/credit card)
+  expenseAccountIds: string[]; // multiple category account IDs
+  amounts: number[];           // same length as above
+  privateNote?: string;
+  paymentType?: 'Cash' | 'CreditCard';
+}) {
+  if (args.expenseAccountIds.length !== args.amounts.length) {
+    throw new Error('expenseAccountIds and amounts must be the same length');
+  }
+
+  const lines = args.expenseAccountIds.map((accountId, index) => ({
+    Amount: args.amounts[index],
+    DetailType: 'AccountBasedExpenseLineDetail',
+    AccountBasedExpenseLineDetail: {
+      AccountRef: {
+        value: accountId
+      }
+    }
+  }));
+
+  return {
+    TxnDate: args.date,
+    PaymentType: args.paymentType || 'Cash',
+    AccountRef: {
+      value: args.accountId
+    },
+    EntityRef: {
+      type: 'Vendor',
+      value: args.vendorId
+    },
+    Line: lines,
+    ...(args.privateNote && { PrivateNote: args.privateNote })
+  };
+}
