@@ -162,8 +162,11 @@ router.get('/callback', async (req, res) => {
     
     const authResponse = await qboClient.createToken(callbackUrl);
     const token = authResponse.getToken();
-    
+    console.log('Token received from QuickBooks:', token);
+
     await saveTokenToDatabase(token);
+    console.log('Token saved to database');
+
     qboClient.setToken(token);
     
     // Return success instead of redirecting
