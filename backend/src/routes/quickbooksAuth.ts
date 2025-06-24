@@ -5,7 +5,7 @@ import OAuthClient from 'intuit-oauth'
 
 const router = Router();
 
-const { QB_CLIENT_ID, QB_REDIRECT_URI, QB_CLIENT_SECRET } = process.env
+const { QB_CLIENT_ID, QB_REDIRECT_URI, QB_CLIENT_SECRET, QB_ENVIRONMENT } = process.env
 
 // Use frontend callback URL for OAuth
 const frontendCallbackUrl = process.env.FRONTEND_URL 
@@ -15,7 +15,7 @@ const frontendCallbackUrl = process.env.FRONTEND_URL
 let qboClient = new OAuthClient({
   clientId: QB_CLIENT_ID,
   clientSecret: QB_CLIENT_SECRET,
-  environment: "sandbox",
+  environment: QB_ENVIRONMENT,
   redirectUri: frontendCallbackUrl,
   logging: true,        //NOTE: a "logs" folder will be created/used in the current working directory, this will have oAuthClient-log.log 
 });
