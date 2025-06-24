@@ -371,7 +371,7 @@ const prepareBankAccounts = computed(() => {
     }));
 });
 const prepareExpenseAccounts = computed(() => {
-  return qbBankAccounts.value
+  const accounts = qbBankAccounts.value
     .filter((el) => {
       return el.type === "Expense";
     })
@@ -379,6 +379,8 @@ const prepareExpenseAccounts = computed(() => {
       id: el.id,
       name: el.name,
     }));
+  console.log("prepareExpenseAccounts", accounts);
+  return accounts;
 });
 const prepareQbVendors = computed(() => {
   return qbVendors.value.map((el) => ({
