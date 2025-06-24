@@ -911,6 +911,8 @@ onMounted(() => {
   
   if (storedCode) {
     processQuickBooksCallback(storedCode, storedRealmId, storedState, storedUrl);
+  } else {
+    console.log("code was not stored!!!!")
   }
 
   // Refresh QuickBooks connection status every 30 seconds
