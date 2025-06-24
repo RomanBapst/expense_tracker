@@ -46,7 +46,7 @@ app.use(
     cacheLocation: 'localstorage',
     useRefreshTokens: true,
     authorizationParams: {
-      redirect_uri: window.location.origin + '/expenses',
+      redirect_uri: import.meta.env.VITE_AUTH0_REDIRECT_URI || window.location.origin + '/expenses',
       audience: import.meta.env.VITE_APP_AUDIENCE,
       scope: import.meta.env.VITE_APP_SCOPE
     }
