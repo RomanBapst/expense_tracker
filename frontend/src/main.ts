@@ -3,6 +3,7 @@ import App from './App.vue'
 import ExpensePage from './components/ExpensePage.vue'
 import LoginPage from './components/LoginPage.vue'
 import AdminPage from './components/AdminPage.vue'
+import QuickBooksCallback from './components/QuickBooksCallback.vue'
 import { createRouter, createWebHashHistory, createWebHistory } from 'vue-router'
 import { createAuth0, authGuard } from '@auth0/auth0-vue';
 
@@ -20,6 +21,7 @@ const routes = [
   //{ path: '/employees', name: 'Employees', component: EmployeePage},
   //{ path: '/departments', name: 'Departments', component: DepartmentPage},
   { path: '/expenses', name: 'Expenses', component: ExpensePage, beforeEnter: authGuard},
+  { path: '/quickbooks-callback', name: 'QuickBooks Callback', component: QuickBooksCallback },
 ]
 
 // 3. Create the router instance and pass the `routes` option
@@ -44,7 +46,7 @@ app.use(
     cacheLocation: 'localstorage',
     useRefreshTokens: true,
     authorizationParams: {
-      redirect_uri: window.location.origin,
+      redirect_uri: window.location.origin + '/expenses',
       audience: import.meta.env.VITE_APP_AUDIENCE,
       scope: import.meta.env.VITE_APP_SCOPE
     }

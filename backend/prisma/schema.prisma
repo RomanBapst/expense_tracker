@@ -71,3 +71,15 @@ model Migration {
   createdAt DateTime @default(now())
 }
 
+model QuickBooksToken {
+  id          Int      @id @default(autoincrement())
+  accessToken String   @db.Text
+  refreshToken String? @db.Text
+  tokenType   String   @default("bearer")
+  expiresAt   DateTime
+  realmId     String   @unique
+  environment String   @default("sandbox") // sandbox or production
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+

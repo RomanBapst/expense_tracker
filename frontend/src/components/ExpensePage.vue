@@ -903,6 +903,16 @@ onMounted(() => {
   getQbVendors();
   checkIfQbConnected();
 
+  // Check for stored QuickBooks callback parameters
+  const storedCode = sessionStorage.getItem('qb_callback_code');
+  const storedRealmId = sessionStorage.getItem('qb_callback_realmId');
+  const storedState = sessionStorage.getItem('qb_callback_state');
+  const storedUrl = sessionStorage.getItem('qb_callback_url');
+  
+  if (storedCode) {
+    processQuickBooksCallback(storedCode, storedRealmId, storedState, storedUrl);
+  }
+
   // Refresh QuickBooks connection status every 30 seconds
   const qbStatusInterval = setInterval(checkIfQbConnected, 30000);
 
@@ -1103,6 +1113,45 @@ async function checkIfQbConnected() {
   }
 }
 
+async function processQuickBooksCallback(code: string, realmId: string | null, state: string | null, callbackUrl: string | null) {
+  try {
+    // Clear stored parameters
+    sessionStorage.removeItem('qb_callback_code');
+    sessionStorage.removeItem('qb_callback_realmId');
+    sessionStorage.removeItem('qb_callback_state');
+    sessionStorage.removeItem('qb_callback_url');
+    
+    // Construct the callback URL with all parameters
+    const fullCallbackUrl = callbackUrl || `${window.location.origin}/quickbooks-callback?code=${code}&realmId=${realmId}&state=${state}`;
+    
+    // Call the backend to complete the OAuth flow
+    const apiUrl = `${import.meta.env.VITE_APP_API_ADDR}/callback?callbackUrl=${encodeURIComponent(fullCallbackUrl)}`;
+    
+    const response = await fetch(apiUrl, {
+      method: 'GET',
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to complete QuickBooks authentication');
+    }
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      // Refresh the connection status
+      await checkIfQbConnected();
+      // Show success message
+      displayError('QuickBooks connected successfully!');
+    } else {
+      throw new Error(data.error || 'Authentication failed');
+    }
+  } catch (error: any) {
+    console.error('QuickBooks callback error:', error);
+    displayError(error.message || 'An unexpected error occurred during QuickBooks authentication');
+  }
+}
+
 async function qbLogin() {
   try {
     const token = await auth0.getAccessTokenSilently();
@@ -1124,10 +1173,11 @@ async function qbLogin() {
       throw new Error(`Error: ${response.status} - ${errorData.message}`);
     }
 
-    const authUri = await response.text();
-
+    const data = await response.json();
+    
+    // Redirect the browser to QuickBooks OAuth
     console.log("Redirecting to QuickBooks login...");
-    window.location.href = authUri;
+    window.location.href = data.authUrl;
   } catch (err: any) {
     console.error(`Failed to redirect to QuickBooks login:`, err.message);
     displayError(err.message);

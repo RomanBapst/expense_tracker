@@ -3,26 +3,103 @@ import prisma from '../prisma';
 
 import OAuthClient from 'intuit-oauth'
 
-
-
 const router = Router();
 
 const { QB_CLIENT_ID, QB_REDIRECT_URI, QB_CLIENT_SECRET } = process.env
+
+// Use frontend callback URL for OAuth
+const frontendCallbackUrl = process.env.FRONTEND_URL 
+  ? `${process.env.FRONTEND_URL}/quickbooks-callback`
+  : 'http://localhost:5173/quickbooks-callback';
+
 let qboClient = new OAuthClient({
   clientId: QB_CLIENT_ID,
   clientSecret: QB_CLIENT_SECRET,
   environment: "sandbox",
-  redirectUri: QB_REDIRECT_URI,
+  redirectUri: frontendCallbackUrl,
   logging: true,        //NOTE: a "logs" folder will be created/used in the current working directory, this will have oAuthClient-log.log 
 });
 
 /**
- * App Variables
- * @type {null}
+ * Token Management Functions
  */
-let oauth2_token_json = null
+async function saveTokenToDatabase(token: any) {
+  const expiresAt = new Date();
+  expiresAt.setSeconds(expiresAt.getSeconds() + token.expires_in);
+  
+  await prisma.quickBooksToken.upsert({
+    where: { realmId: token.realmId },
+    update: {
+      accessToken: token.access_token,
+      refreshToken: token.refresh_token,
+      expiresAt: expiresAt,
+      updatedAt: new Date(),
+    },
+    create: {
+      accessToken: token.access_token,
+      refreshToken: token.refresh_token,
+      expiresAt: expiresAt,
+      realmId: token.realmId,
+      environment: "sandbox", // or get from config
+    },
+  });
+}
 
+async function loadTokenFromDatabase(realmId?: string) {
+  try {
+    const tokenRecord = await prisma.quickBooksToken.findFirst({
+      where: realmId ? { realmId } : {},
+      orderBy: { updatedAt: 'desc' }
+    });
+    
+    if (!tokenRecord) return null;
+    
+    // Check if token is expired
+    if (new Date() > tokenRecord.expiresAt) {
+      // Token is expired, try to refresh
+      if (tokenRecord.refreshToken) {
+        try {
+          const refreshResponse = await qboClient.refreshUsingToken(tokenRecord.refreshToken);
+          const newToken = refreshResponse.getToken();
+          await saveTokenToDatabase(newToken);
+          return newToken;
+        } catch (error) {
+          console.error('Failed to refresh token:', error);
+          // Delete expired token
+          await prisma.quickBooksToken.delete({ where: { id: tokenRecord.id } });
+          return null;
+        }
+      } else {
+        // No refresh token, delete expired token
+        await prisma.quickBooksToken.delete({ where: { id: tokenRecord.id } });
+        return null;
+      }
+    }
+    
+    // Return valid token
+    return {
+      access_token: tokenRecord.accessToken,
+      refresh_token: tokenRecord.refreshToken,
+      token_type: tokenRecord.tokenType,
+      expires_in: Math.floor((tokenRecord.expiresAt.getTime() - new Date().getTime()) / 1000),
+      realmId: tokenRecord.realmId,
+    };
+  } catch (error) {
+    console.error('Error loading token from database:', error);
+    return null;
+  }
+}
 
+async function initializeQboClient() {
+  const token = await loadTokenFromDatabase();
+  
+  if (token) {
+    qboClient.setToken(token);
+  }
+}
+
+// Initialize the client with stored token on startup
+initializeQboClient();
 
 function createExpensePayload(args: {
   date: string;
@@ -63,26 +140,45 @@ function createExpensePayload(args: {
 }
 
 router.get('/api/auth/redirect', async (req, res) => {
-
   const authUri = qboClient.authorizeUri({
     scope: [OAuthClient.scopes.Accounting, OAuthClient.scopes.OpenId, OAuthClient.scopes.Profile, OAuthClient.scopes.Email],
     state: 'intuit-test',
   });
 
-
-  res.send(authUri);
+  res.json({ authUrl: authUri });
 })
 
 router.get('/callback', async (req, res) => {
   try {
-    const authResponse = await qboClient.createToken(req.url);
-    oauth2_token_json = JSON.stringify(authResponse.json, null, 2);
-    qboClient.setToken(authResponse.getToken());
-    // redirect only after token is successfully created
-    res.redirect('http://localhost/expenses');
+    // Get the full callback URL from the frontend
+    const callbackUrl = req.query.callbackUrl as string;
+    
+    if (!callbackUrl) {
+      return res.status(400).json({ 
+        success: false, 
+        error: "Missing callback URL" 
+      });
+    }
+    
+    const authResponse = await qboClient.createToken(callbackUrl);
+    const token = authResponse.getToken();
+    
+    await saveTokenToDatabase(token);
+    qboClient.setToken(token);
+    
+    // Return success instead of redirecting
+    res.json({ 
+      success: true, 
+      message: 'QuickBooks authentication successful',
+      realmId: token.realmId 
+    });
   } catch (e) {
-    console.error(e);
-    res.status(500).send("Error during OAuth callback");
+    console.error('QuickBooks callback error:', e);
+    res.status(500).json({ 
+      success: false, 
+      error: "Error during OAuth callback",
+      details: e.message || e.toString()
+    });
   }
 });
 
@@ -152,17 +248,24 @@ router.get('/getVendors', async (req, res) => {
 router.get('/api/qb/status', async (req, res) => {
   try {
     const realmId = qboClient.getToken().realmId;
-    if (!realmId) return res.json({ connected: false });
+    
+    if (!realmId) {
+      return res.json({ connected: false });
+    }
+    
     // Make a lightweight call to verify token is valid
     const baseUrl = qboClient.environment === 'sandbox'
       ? OAuthClient.environment.sandbox
       : OAuthClient.environment.production;
     const url = `${baseUrl}v3/company/${realmId}/companyinfo/${realmId}`;
+    
     const result = await qboClient.makeApiCall({ url });
+    
     // If we got CompanyInfo, consider connected
     if (result?.json?.CompanyInfo) {
       return res.json({ connected: true });
     }
+    
     return res.json({ connected: false });
   } catch (err) {
     console.error('QB status check failed:', err);
