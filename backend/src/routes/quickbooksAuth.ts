@@ -213,13 +213,27 @@ router.get('/getAccounts', async (req, res) => {
         ? OAuthClient.environment.sandbox
         : OAuthClient.environment.production;
 
-    const query = `select * from Account`;
-    const encodedQuery = encodeURIComponent(query);
-    const url = `${baseUrl}v3/company/${companyID}/query?query=${encodedQuery}`;
+    let allAccounts: any[] = [];
+    let startPosition = 1;
+    const maxResults = 1000; // QuickBooks max per page
 
-    const response = await qboClient.makeApiCall({ url });
+    while (true) {
+      const query = `select * from Account STARTPOSITION ${startPosition} MAXRESULTS ${maxResults}`;
+      const encodedQuery = encodeURIComponent(query);
+      const url = `${baseUrl}v3/company/${companyID}/query?query=${encodedQuery}`;
 
-    res.send(response.json.QueryResponse.Account || []);
+      const response = await qboClient.makeApiCall({ url });
+      const accounts = response.json.QueryResponse.Account || [];
+
+      allAccounts = allAccounts.concat(accounts);
+
+      if (accounts.length < maxResults) {
+        break; // No more pages
+      }
+      startPosition += maxResults;
+    }
+
+    res.send(allAccounts);
   } catch (error) {
     console.error("Error fetching accounts:", error);
     res.status(500).send({ error: 'Failed to fetch accounts' });
