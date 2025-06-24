@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import prisma from '../prisma';
 
 import OAuthClient from 'intuit-oauth'
 
@@ -173,13 +174,12 @@ router.get('/api/qb/status', async (req, res) => {
 
 router.post('/createExpense', async (req, res) => {
   try {
-    const payload = req.body
+    const payload = req.body;
+    const { localExpenseId, ...qbPayload } = payload; // The local expense id should be sent from the frontend
     const realmId = qboClient.getToken().realmId;
     if (!realmId) {
       return res.status(500).json({ error: 'No realmId in QuickBooks token' });
     }
-
-
 
     const baseUrl =
       qboClient.environment === 'sandbox'
@@ -188,20 +188,84 @@ router.post('/createExpense', async (req, res) => {
 
     const url = `${baseUrl}v3/company/${realmId}/purchase`;
 
-    console.log("making request with payload", JSON.stringify(payload, null, 2))
+    console.log("making request with payload", JSON.stringify(qbPayload, null, 2));
 
     const response = await qboClient.makeApiCall({
       url,
       method: 'POST',
-      body: payload,
+      body: qbPayload,
     });
 
+    // Extract the QuickBooks expense id from the response
+    const qbExpenseId = response.json?.Purchase?.Id;
+
+    // If we have both a local expense id and a QuickBooks id, update the local record
+    if (localExpenseId && qbExpenseId) {
+      await prisma.expense.update({
+        where: { id: Number(localExpenseId) },
+        data: { qbExpenseId: String(qbExpenseId) },
+      });
+    }
+
     return res.json(response.json);
-  } catch (err: any) {
-console.error('QuickBooks API error:', err.response?.body || err.message || err);
-  return res.status(400).json({ error: err.response?.body || err.message || 'Bad Request' });
+  } catch (err) {
+    console.error('QuickBooks API error:', err.response?.body || err.message || err);
+    return res.status(400).json({ error: err.response?.body || err.message || 'Bad Request' });
   }
 });
 
+// Endpoint to update an Expense with the QuickBooks expense id
+router.post('/expenses/:id/qb-id', async (req, res) => {
+  const expenseId = Number(req.params.id);
+  const { qbExpenseId } = req.body;
+  if (!qbExpenseId) {
+    return res.status(400).json({ error: 'Missing qbExpenseId' });
+  }
+  try {
+    const updated = await prisma.expense.update({
+      where: { id: expenseId },
+      data: { qbExpenseId },
+    });
+    res.json({ success: true, expense: updated });
+  } catch (err) {
+    console.error('Failed to update qbExpenseId:', err);
+    res.status(500).json({ error: 'Failed to update qbExpenseId' });
+  }
+});
+
+// Endpoint to fetch QuickBooks expense details
+router.get('/qb-expense/:id/details', async (req, res) => {
+  try {
+    const expenseId = Number(req.params.id);
+    
+    // Get the expense to find its qbExpenseId
+    const expense = await prisma.expense.findUnique({
+      where: { id: expenseId },
+      select: { qbExpenseId: true }
+    });
+    
+    if (!expense?.qbExpenseId) {
+      return res.status(404).json({ error: 'Expense not synced to QuickBooks' });
+    }
+    
+    const realmId = qboClient.getToken().realmId;
+    if (!realmId) {
+      return res.status(500).json({ error: 'No realmId in QuickBooks token' });
+    }
+    
+    const baseUrl = qboClient.environment === 'sandbox'
+      ? OAuthClient.environment.sandbox
+      : OAuthClient.environment.production;
+    
+    const url = `${baseUrl}v3/company/${realmId}/purchase/${expense.qbExpenseId}`;
+    
+    const response = await qboClient.makeApiCall({ url });
+    
+    res.json(response.json);
+  } catch (err) {
+    console.error('Failed to fetch QuickBooks expense details:', err);
+    res.status(500).json({ error: 'Failed to fetch QuickBooks expense details' });
+  }
+});
 
 export default router;

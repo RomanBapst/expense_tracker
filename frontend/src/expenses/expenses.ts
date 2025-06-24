@@ -11,6 +11,7 @@ export interface Expense {
     author : Author
     accountId: Number
     account: Account | undefined
+    qbExpenseId: string | undefined
   }
 
 export interface Author {
@@ -37,6 +38,30 @@ export interface QBVendor {
   name: string
 }
 
+export interface QBExpenseDetails {
+  Id: string;
+  TxnDate: string;
+  PaymentType: string;
+  AccountRef: {
+    value: string;
+    name: string;
+  };
+  EntityRef: {
+    value: string;
+    name: string;
+  };
+  Line: Array<{
+    Amount: number;
+    DetailType: string;
+    AccountBasedExpenseLineDetail: {
+      AccountRef: {
+        value: string;
+        name: string;
+      };
+    };
+  }>;
+  PrivateNote?: string;
+}
 
 export function createExpensePayload(args: {
   date: string;

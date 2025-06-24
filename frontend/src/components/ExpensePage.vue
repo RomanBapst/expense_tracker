@@ -9,6 +9,50 @@
         <fwb-heading tag="h1" class="text-blue-400 text-2xl font-bold">
           Expense Tracker
         </fwb-heading>
+        <!-- QuickBooks Connection Status -->
+        <div class="flex items-center mt-2">
+          <span class="text-sm font-medium text-gray-700 mr-2">QuickBooks:</span>
+          <div class="flex items-center cursor-pointer" @click="checkIfQbConnected">
+            <div 
+              :class="[
+                'w-3 h-3 rounded-full mr-2',
+                qbConnected ? 'bg-green-500' : 'bg-red-500'
+              ]"
+            ></div>
+            <span 
+              :class="[
+                'text-sm',
+                qbConnected ? 'text-green-600' : 'text-red-600'
+              ]"
+            >
+              {{ qbConnected ? 'Connected' : 'Disconnected' }}
+            </span>
+            <svg class="w-4 h-4 ml-2 text-gray-500 hover:text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+            </svg>
+          </div>
+          <fwb-button 
+            v-if="!qbConnected" 
+            @click="qbLogin" 
+            class="ml-4 bg-blue-600 hover:bg-blue-700 text-white text-sm px-3 py-1"
+          >
+            Connect QuickBooks
+          </fwb-button>
+        </div>
+        
+        <!-- Global Sync Status Indicator -->
+        <div v-if="syncStatus === 'syncing'" class="mt-2 p-2 bg-blue-50 border border-blue-200 rounded flex items-center">
+          <Spinner class="w-4 h-4 mr-2 text-blue-600" />
+          <span class="text-sm text-blue-700">Syncing expense to QuickBooks...</span>
+        </div>
+        <div v-else-if="syncStatus === 'success'" class="mt-2 p-2 bg-green-50 border border-green-200 rounded flex items-center">
+          <span class="text-green-600 mr-2">✓</span>
+          <span class="text-sm text-green-700">Successfully synced to QuickBooks!</span>
+        </div>
+        <div v-else-if="syncStatus === 'error'" class="mt-2 p-2 bg-red-50 border border-red-200 rounded flex items-center">
+          <span class="text-red-600 mr-2">❌</span>
+          <span class="text-sm text-red-700">Failed to sync to QuickBooks</span>
+        </div>
       </div>
 
       <!-- Conditionally Rendered Components -->
@@ -29,9 +73,13 @@
         :qbPaymentAccounts="prepareBankAccounts"
         :qbExpenseAccounts="prepareExpenseAccounts"
         :qbVendors="prepareQbVendors"
+        :qbConnected="qbConnected"
+        :qbExpenseId="getCurrentExpenseQbId()"
+        :qbExpenseDetails="qbExpenseDetails"
         @close="closeAddExpenseDialog"
         @submitClicked="handleAddExpense"
         @qbSyncClicked="handleQbSync"
+        :syncStatus="syncStatus"
       />
 
       <!-- Main Content Area -->
@@ -107,6 +155,12 @@
               📎
             </span>
           </template>
+          <template #cell-3="{ item }">
+            <div class="flex items-center">
+              <span>{{ item.values[3] }}</span>
+              <span v-if="item.qbExpenseId" class="ml-2 text-green-600 text-xs" title="Synced to QuickBooks">✓ QB</span>
+            </div>
+          </template>
           <template #button1="{ item }">
             <div class="flex items-center justify-center">
               <Spinner
@@ -123,11 +177,6 @@
           <template #button2="{ item }">
             <fwb-button @click="handleEditExpense(item.id)" class="bg-green-700"
               >Edit</fwb-button
-            >
-          </template>
-          <template #button3="{ item }">
-            <fwb-button @click="handleSyncWithQuickbooks(item.id)" class="bg-yellow-700"
-              >QB</fwb-button
             >
           </template>
         </SimpleTable>
@@ -157,6 +206,12 @@
             >
               📎
             </span>
+          </template>
+          <template #cell-3="{ item }">
+            <div class="flex items-center">
+              <span>{{ item.values[3] }}</span>
+              <span v-if="item.qbExpenseId" class="ml-2 text-green-600 text-xs" title="Synced to QuickBooks">✓ QB</span>
+            </div>
           </template>
           <template #button1="{ item }">
             <fwb-button @click="restoreExpense(item.id)" class="bg-blue-700"
@@ -196,13 +251,14 @@ import NavigationBar from "./NavigationBar.vue";
 import AddExpense from "./AddExpense.vue";
 import SimpleTable from "./SimpleTable.vue";
 import Spinner from "./SpinnerComponent.vue"; // Import the Spinner component
-import { ref, onMounted, computed, watch } from "vue";
+import { ref, onMounted, computed, watch, onUnmounted } from "vue";
 import { useAuth0 } from "@auth0/auth0-vue";
 import {
   Expense,
   Account,
   QBAccount,
   QBVendor,
+  QBExpenseDetails,
   createExpensePayload,
 } from "@/expenses/expenses";
 import { FwbButton } from "flowbite-vue"; // Add this import statement
@@ -270,6 +326,17 @@ const baseUrlQbAccounts = import.meta.env.VITE_APP_API_ADDR + "/getAccounts";
 const qbVendors = ref<QBVendor[]>([]);
 const baseUrlQbVendors = import.meta.env.VITE_APP_API_ADDR + "/getVendors";
 const baseUrlQbExpense = import.meta.env.VITE_APP_API_ADDR + "/createExpense";
+
+// QuickBooks details for synced expenses
+const qbExpenseDetails = ref<QBExpenseDetails | null>(null);
+const baseUrlQbDetails = import.meta.env.VITE_APP_API_ADDR + "/qb-expense";
+
+// Sync status for AddExpense QuickBooks sync
+const syncStatus = ref<'idle' | 'syncing' | 'success' | 'error'>('idle');
+
+// Add QuickBooks connection status
+const qbConnected = ref(false);
+const baseUrlQbConnected = import.meta.env.VITE_APP_API_ADDR + "/api/qb/status";
 
 enum ColumnType {
   DEFAULT = 1,
@@ -396,6 +463,12 @@ const onSearch = async () => {
 function closeAddExpenseDialog() {
   isEditing.value = false;
   isAdding.value = false;
+  
+  // Don't reset sync status if sync is in progress
+  // This allows the sync to continue in the background
+  if (syncStatus.value !== 'syncing') {
+    syncStatus.value = 'idle';
+  }
 }
 
 const filteredExpenses = computed(() => {
@@ -411,6 +484,7 @@ const filteredExpenses = computed(() => {
       0,
     ],
     receipt: el.receipts.length > 0,
+    qbExpenseId: el.qbExpenseId,
   }));
 });
 
@@ -500,25 +574,6 @@ function openReceipt(expenseId: number) {
   receiptViewerOpen.value = true;
 }
 
-const handleQbSync = (expenses: Array<any>) => {
-  const expenseAccountIds = expenses.map((e) => e.accountId);
-  const amounts = expenses.map((e) => e.amount);
-
-  const payload = createExpensePayload({
-    date: new Date(date.value).toISOString().split("T")[0],
-    vendorId: selectedVendorId.value,
-    accountId: selectedBankAccountId.value,
-    expenseAccountIds,
-    amounts,
-    privateNote: description.value,
-    paymentType: "Cash", // or 'CreditCard'
-  });
-
-  console.log("payload", payload);
-
-  postQbExpense(payload);
-};
-
 const handleAddExpense = (
   fileData: Array<File> | null,
   removedReceiptIds: Array<number> = []
@@ -580,6 +635,13 @@ function prepareArchivedExpenses() {
     return el.archived;
   });
 }
+
+function getCurrentExpenseQbId(): string | undefined {
+  if (!editedExpenseId.value) return undefined;
+  const expense = expenses.value.find(exp => exp.id === editedExpenseId.value);
+  return expense?.qbExpenseId;
+}
+
 const filteredArchivedExpenses = computed(() => {
   return prepareArchivedExpenses().map((el) => ({
     id: el.id,
@@ -593,6 +655,7 @@ const filteredArchivedExpenses = computed(() => {
       0,
     ],
     receipt: el.receipts.length > 0,
+    qbExpenseId: el.qbExpenseId,
   }));
 });
 
@@ -803,8 +866,6 @@ async function getAllAccounts() {
   }
 }
 
-async function handleSyncWithQuickbooks(id: number) {}
-
 async function handleEditExpense(id: number) {
   if (isAdding.value || isEditing.value) {
     return;
@@ -812,7 +873,6 @@ async function handleEditExpense(id: number) {
 
   scrollPosition.value = document.querySelector(".expenses-table").scrollTop;
 
-  console.log("scroll pos is " + scrollPosition.value);
 
   const expense = expenses.value.find((exp) => exp.id === id);
   if (expense !== undefined) {
@@ -826,6 +886,13 @@ async function handleEditExpense(id: number) {
     removeExistingReceipt.value = false;
     expenseAccount.value = String(expense.accountId);
     existingReceipts.value = expense.receipts;
+    
+    // Fetch QuickBooks details if expense is synced
+    if (expense.qbExpenseId) {
+      await getQbExpenseDetails(id);
+    } else {
+      qbExpenseDetails.value = null;
+    }
   }
 }
 
@@ -834,6 +901,15 @@ onMounted(() => {
   getAllAccounts();
   getqbAccounts();
   getQbVendors();
+  checkIfQbConnected();
+
+  // Refresh QuickBooks connection status every 30 seconds
+  const qbStatusInterval = setInterval(checkIfQbConnected, 30000);
+
+  // Clean up interval on component unmount
+  onUnmounted(() => {
+    clearInterval(qbStatusInterval);
+  });
 
   if (route.query.archived === "true") {
     activeTab.value = "tab2";
@@ -960,6 +1036,129 @@ async function postQbExpense(payload: Any) {
     }));
   } catch (err) {
     console.log(err.message);
+  }
+}
+
+async function handleQbSync(expenseEntries: { accountId: string; amount: string }[]) {
+  syncStatus.value = 'syncing';
+  try {
+    // Only sync if we're editing an existing expense
+    if (!editedExpenseId.value) {
+      throw new Error('Cannot sync: No expense ID available');
+    }
+
+    // Prepare payload for QB sync
+    const payload = createExpensePayload({
+      date: new Date(date.value).toISOString().split('T')[0],
+      vendorId: selectedVendorId.value,
+      accountId: selectedBankAccountId.value,
+      expenseAccountIds: expenseEntries.map(e => e.accountId),
+      amounts: expenseEntries.map(e => e.amount),
+      privateNote: description.value,
+      paymentType: 'Cash',
+    });
+
+    // Add the local expense ID to the payload
+    const payloadWithLocalId = {
+      ...payload,
+      localExpenseId: editedExpenseId.value
+    };
+
+    await postQbExpense(payloadWithLocalId);
+    syncStatus.value = 'success';
+    
+    // Refresh the expenses list to show the updated qbExpenseId
+    await getAllExpenses();
+    
+    // Auto-clear success message after 3 seconds
+    setTimeout(() => { syncStatus.value = 'idle'; }, 3000);
+  } catch (err) {
+    syncStatus.value = 'error';
+    // Auto-clear error message after 5 seconds
+    setTimeout(() => { syncStatus.value = 'idle'; }, 5000);
+    displayError('Failed to sync with QuickBooks');
+  }
+}
+
+async function checkIfQbConnected() {
+  try {
+    const token = await auth0.getAccessTokenSilently().catch(() => {
+      auth0.loginWithRedirect();
+    });
+
+    const response = await fetch(baseUrlQbConnected, {
+      headers: { Authorization: "Bearer " + token },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`Error: ${response.status} - ${errorData.message}`);
+    }
+
+    const data = await response.json();
+    qbConnected.value = data.connected;
+  } catch (err) {
+    console.log(err.message);
+    qbConnected.value = false;
+  }
+}
+
+async function qbLogin() {
+  try {
+    const token = await auth0.getAccessTokenSilently();
+
+    const requestOptions = {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    };
+
+    const qbUrl = import.meta.env.VITE_APP_API_ADDR + "/api/auth/redirect";
+    const response = await fetch(qbUrl, {
+      ...requestOptions,
+      method: "GET",
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`Error: ${response.status} - ${errorData.message}`);
+    }
+
+    const authUri = await response.text();
+
+    console.log("Redirecting to QuickBooks login...");
+    window.location.href = authUri;
+  } catch (err: any) {
+    console.error(`Failed to redirect to QuickBooks login:`, err.message);
+    displayError(err.message);
+  }
+}
+
+async function getQbExpenseDetails(expenseId: number) {
+  try {
+    const token = await auth0.getAccessTokenSilently().catch(() => {
+      auth0.loginWithRedirect();
+    });
+
+    const response = await fetch(`${baseUrlQbDetails}/${expenseId}/qb-details`, {
+      headers: { Authorization: "Bearer " + token },
+    });
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        // Expense not synced to QuickBooks
+        qbExpenseDetails.value = null;
+        return;
+      }
+      const errorData = await response.json();
+      throw new Error(`Error: ${response.status} - ${errorData.message}`);
+    }
+
+    const data = await response.json();
+    qbExpenseDetails.value = data.Purchase;
+  } catch (err) {
+    console.error("Failed to fetch QuickBooks expense details:", err);
+    qbExpenseDetails.value = null;
   }
 }
 </script>

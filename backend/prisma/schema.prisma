@@ -37,6 +37,7 @@ model Expense {
   archived Boolean @default(false)
   account ExpenseAccount? @relation(fields: [accountId], references: [id], onDelete: Restrict)
   accountId Int?
+  qbExpenseId String? // QuickBooks expense id
 }
 
 model Receipt {
