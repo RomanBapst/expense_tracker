@@ -12,7 +12,7 @@ const auth0 = useAuth0();
 
 onMounted(() => {
   // Check if we're on a QuickBooks callback URL and store parameters
-  if (window.location.pathname === '/quickbooks-callback' && window.location.search.includes('code=')) {
+  if (window.location.pathname.includes('/quickbooks-callback') && window.location.search.includes('code=')) {
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get('code');
     const realmId = urlParams.get('realmId');
