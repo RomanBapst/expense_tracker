@@ -75,8 +75,14 @@ onMounted(async () => {
     const apiUrl = `${import.meta.env.VITE_APP_API_ADDR}/callback?callbackUrl=${encodeURIComponent(callbackUrl)}`;
     
     try {
+      // Get Auth0 token to preserve session
+      const token = await auth0.getAccessTokenSilently();
+      
       const response = await fetch(apiUrl, {
         method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
       });
       
       if (!response.ok) {
