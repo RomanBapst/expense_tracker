@@ -372,9 +372,7 @@ const prepareBankAccounts = computed(() => {
 });
 const prepareExpenseAccounts = computed(() => {
   const accounts = qbBankAccounts.value
-    .filter((el) => {
-      return el.type === "Expense";
-    })
+    .filter((el) => String(el.type).trim().toLowerCase() === "expense")
     .map((el) => ({
       id: el.id,
       name: el.name,
