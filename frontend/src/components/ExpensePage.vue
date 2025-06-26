@@ -1207,7 +1207,7 @@ async function getQbExpenseDetails(expenseId: number) {
       auth0.loginWithRedirect();
     });
 
-    const response = await fetch(`${baseUrlQbDetails}/${expenseId}/qb-details`, {
+    const response = await fetch(`${baseUrlQbDetails}/${expenseId}/details`, {
       headers: { Authorization: "Bearer " + token },
     });
 
