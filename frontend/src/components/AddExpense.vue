@@ -189,20 +189,16 @@
               >
                 Expense Account
               </label>
-              <select
+              <Multiselect
                 :id="'expenseAccountModel-' + index"
                 v-model="entry.accountId"
-                class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-              >
-                <option disabled value="">-- Select Expense Account --</option>
-                <option
-                  v-for="account in qbExpenseAccounts as Array<{ id: string; name: string }>"
-                  :key="account.id"
-                  :value="account.id"
-                >
-                  {{ account.name }}
-                </option>
-              </select>
+                :options="qbExpenseAccounts"
+                label="name"
+                valueProp="id"
+                placeholder="Select or search expense account"
+                searchable
+                class="mt-1 block w-full"
+              />
             </div>
 
             <!-- Credit Amount Input -->
@@ -302,6 +298,8 @@ import { FwbInput, FwbButton, FwbNavbarCollapse } from "flowbite-vue";
 import { computed, watch } from "vue";
 import { exp } from "mathjs";
 import Spinner from "./SpinnerComponent.vue";
+import Multiselect from '@vueform/multiselect';
+import '@vueform/multiselect/themes/default.css';
 
 const file = ref<File[] | null>([]);
 const removeExistingReceipt = ref(false);
