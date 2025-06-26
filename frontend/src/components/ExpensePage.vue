@@ -371,13 +371,22 @@ const prepareBankAccounts = computed(() => {
     }));
 });
 const prepareExpenseAccounts = computed(() => {
+  // Only include 'Expense' accounts that are leaf nodes (no children)
   const accounts = qbBankAccounts.value
-    .filter((el) => String(el.type).trim().toLowerCase() === "expense")
+    .filter((el) => {
+      const acc = el as any;
+      if (acc.type !== "Expense") return false;
+      if (acc.SubAccounts && Array.isArray(acc.SubAccounts) && acc.SubAccounts.length > 0) return false;
+      if (acc.Child && Array.isArray(acc.Child) && acc.Child.length > 0) return false;
+      if (acc.hasChildren === true) return false;
+      if (acc.IsParent === true) return false;
+      return true;
+    })
     .map((el) => ({
       id: el.id,
       name: el.name,
     }));
-  console.log("prepareExpenseAccounts", accounts);
+  console.log("Filtered leaf expense accounts:", accounts);
   return accounts;
 });
 const prepareQbVendors = computed(() => {
@@ -988,10 +997,16 @@ async function getqbAccounts() {
     }
 
     const data = await response.json();
+    // Map all properties from the QuickBooks account object, not just id, name, type
     qbBankAccounts.value = data.map((el: any) => ({
       id: Number(el.Id),
       name: el.Name,
       type: el.AccountType,
+      SubAccounts: el.SubAccounts,
+      Child: el.Child,
+      hasChildren: el.hasChildren,
+      IsParent: el.IsParent,
+      // Add any other relevant properties here
     }));
   } catch (err) {
     console.log(err.message);

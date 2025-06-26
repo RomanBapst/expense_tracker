@@ -30,6 +30,10 @@ export interface QBAccount {
   id: Number,
   name: string
   type: string
+  SubAccounts?: any[]
+  Child?: any[]
+  hasChildren?: boolean
+  IsParent?: boolean
 }
 
 
