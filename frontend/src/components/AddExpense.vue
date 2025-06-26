@@ -23,19 +23,17 @@
           <label for="accountModel" class="block text-sm font-medium text-gray-700">
             Account Type
           </label>
-          <select
+          <Multiselect
             id="accountModel"
             v-model="accountModel"
-            class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-          >
-            <option
-              v-for="account in props.accountTypes as Array<{ id: string; name: string }>"
-              :value="account.id"
-              :key="account.name"
-            >
-              {{ account.name }}
-            </option>
-          </select>
+            :options="props.accountTypes"
+            label="name"
+            valueProp="id"
+            placeholder="Select or search account type"
+            searchable
+            class="mt-1 block w-full"
+            :maxHeight="350"
+          />
         </div>
 
         <fwb-input v-model="titleModel" label="Title" placeholder="Title" size="sm" />
@@ -145,35 +143,33 @@
           <label for="bankAccountModel" class="block text-sm font-medium text-gray-700">
             Payment Account
           </label>
-          <select
+          <Multiselect
             id="bankAccountModel"
             v-model="bankAccountModel"
-            class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-          >
-            <option disabled value="">-- Select Payment Account --</option>
-            <option
-              v-for="account in qbPaymentAccounts as Array<{ id: string; name: string }>"
-              :key="account.id"
-              :value="account.id"
-            >
-              {{ account.name }}
-            </option>
-          </select>
+            :options="qbPaymentAccounts"
+            label="name"
+            valueProp="id"
+            placeholder="Select or search payment account"
+            searchable
+            class="mt-1 block w-full"
+            :maxHeight="350"
+          />
         </div>
         <div>
           <label for="vendorModel" class="block text-sm font-medium text-gray-700">
             Vendor
           </label>
-          <select
+          <Multiselect
             id="vendorModel"
             v-model="vendorModel"
-            class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-          >
-            <option disabled value="">-- Select Vendor --</option>
-            <option v-for="vendor in qbVendors as Array<{ id: string; name: string }>" :key="vendor.id" :value="vendor.id">
-              {{ vendor.name }}
-            </option>
-          </select>
+            :options="qbVendors"
+            label="name"
+            valueProp="id"
+            placeholder="Select or search vendor"
+            searchable
+            class="mt-1 block w-full"
+            :maxHeight="350"
+          />
         </div>
         <div>
           <div
@@ -198,6 +194,7 @@
                 placeholder="Select or search expense account"
                 searchable
                 class="mt-1 block w-full"
+                :maxHeight="800"
               />
             </div>
 
@@ -480,3 +477,10 @@ function distributeAmount() {
   });
 }
 </script>
+
+<style>
+/* Increase the dropdown menu height for Multiselect */
+.multiselect-dropdown {
+  max-height: 350px !important;
+}
+</style>
