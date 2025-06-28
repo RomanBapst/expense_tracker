@@ -1114,7 +1114,7 @@ async function handleQbSync(expenseEntries: { accountId: string; amount: string 
       accountId: selectedBankAccountId.value,
       expenseAccountIds: expenseEntries.map(e => e.accountId),
       amounts: expenseEntries.map(e => parseFloat(e.amount) || 0),
-      privateNote: description.value,
+      privateNote: `${title.value}${description.value ? `, ${description.value}` : ''}`,
       paymentType: 'Cash',
     });
 
@@ -1320,7 +1320,7 @@ async function handleTransferSubmit(from: string, to: string, amount: string, lo
         amount: parseFloat(amount),
         date: new Date(date.value).toISOString().split('T')[0],
         localExpenseId: localExpenseId,
-        description: description,
+        description: `${title.value}${description ? `, ${description}` : ''}`,
       }),
     });
     if (!response.ok) {
