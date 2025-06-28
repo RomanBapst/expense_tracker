@@ -1028,7 +1028,7 @@ async function getqbAccounts() {
     // Map all properties from the QuickBooks account object, not just id, name, type
     qbBankAccounts.value = data.map((el: any) => ({
       id: Number(el.Id),
-      name: el.Name,
+      name: el.FullyQualifiedName,
       type: el.AccountType,
       SubAccounts: el.SubAccounts,
       Child: el.Child,
