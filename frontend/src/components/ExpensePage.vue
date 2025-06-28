@@ -1081,7 +1081,14 @@ async function postQbExpense(payload: Any) {
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new Error(`Error: ${response.status} - ${errorData.message}`);
+      
+      // Handle 409 Conflict - expense already synced
+      if (response.status === 409) {
+        const entityType = errorData.details?.qbEntityType || 'QuickBooks';
+        throw new Error(`This expense is already synced to ${entityType} (ID: ${errorData.details?.qbQbId || errorData.details?.qbExpenseId})`);
+      }
+      
+      throw new Error(`Error: ${response.status} - ${errorData.error || errorData.message}`);
     }
 
     const data = await response.json();
@@ -1308,6 +1315,13 @@ async function handleTransferSubmit(from: string, to: string, amount: string, lo
     });
     if (!response.ok) {
       const errorData = await response.json();
+      
+      // Handle 409 Conflict - expense already synced
+      if (response.status === 409) {
+        const entityType = errorData.details?.qbEntityType || 'QuickBooks';
+        throw new Error(`This expense is already synced to ${entityType} (ID: ${errorData.details?.qbQbId || errorData.details?.qbExpenseId})`);
+      }
+      
       throw new Error(errorData.error || 'Failed to create transfer');
     }
     
