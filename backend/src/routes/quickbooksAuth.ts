@@ -296,6 +296,26 @@ router.post('/createExpense', async (req, res) => {
   try {
     const payload = req.body;
     const { localExpenseId, ...qbPayload } = payload; // The local expense id should be sent from the frontend
+    
+    // Check if the expense already has QuickBooks data
+    if (localExpenseId) {
+      const existingExpense = await prisma.expense.findUnique({
+        where: { id: Number(localExpenseId) },
+        select: { qbExpenseId: true, qbQbId: true, qbEntityType: true }
+      });
+      
+      if (existingExpense && (existingExpense.qbExpenseId || existingExpense.qbQbId)) {
+        return res.status(409).json({ 
+          error: 'Expense already synced to QuickBooks',
+          details: {
+            qbExpenseId: existingExpense.qbExpenseId,
+            qbQbId: existingExpense.qbQbId,
+            qbEntityType: existingExpense.qbEntityType
+          }
+        });
+      }
+    }
+    
     const realmId = qboClient.getToken().realmId;
     if (!realmId) {
       return res.status(500).json({ error: 'No realmId in QuickBooks token' });
@@ -395,6 +415,26 @@ router.get('/qb-expense/:id/details', async (req, res) => {
 router.post('/createTransfer', async (req, res) => {
   try {
     const { fromAccountId, toAccountId, amount, date, localExpenseId, description } = req.body;
+    
+    // Check if the expense already has QuickBooks data
+    if (localExpenseId) {
+      const existingExpense = await prisma.expense.findUnique({
+        where: { id: Number(localExpenseId) },
+        select: { qbExpenseId: true, qbQbId: true, qbEntityType: true }
+      });
+      
+      if (existingExpense && (existingExpense.qbExpenseId || existingExpense.qbQbId)) {
+        return res.status(409).json({ 
+          error: 'Expense already synced to QuickBooks',
+          details: {
+            qbExpenseId: existingExpense.qbExpenseId,
+            qbQbId: existingExpense.qbQbId,
+            qbEntityType: existingExpense.qbEntityType
+          }
+        });
+      }
+    }
+    
     const realmId = qboClient.getToken().realmId;
     if (!realmId) {
       return res.status(500).json({ error: 'No realmId in QuickBooks token' });

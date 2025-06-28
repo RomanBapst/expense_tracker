@@ -1085,12 +1085,10 @@ async function postQbExpense(payload: Any) {
     }
 
     const data = await response.json();
-    qbVendors.value = data.map((el: any) => ({
-      id: Number(el.Id),
-      name: el.DisplayName,
-    }));
+    return data;
   } catch (err) {
     console.log(err.message);
+    throw err;
   }
 }
 
@@ -1119,11 +1117,32 @@ async function handleQbSync(expenseEntries: { accountId: string; amount: string 
       localExpenseId: editedExpenseId.value
     };
 
-    await postQbExpense(payloadWithLocalId);
+    const response = await postQbExpense(payloadWithLocalId);
     syncStatus.value = 'success';
     
-    // Refresh the expenses list to show the updated qbExpenseId
-    await getAllExpenses();
+    // Update the local expense with QuickBooks information
+    if (response && response.Purchase && response.Purchase.Id) {
+      const expenseIndex = expenses.value.findIndex(exp => exp.id === editedExpenseId.value);
+      if (expenseIndex !== -1) {
+        expenses.value[expenseIndex] = {
+          ...expenses.value[expenseIndex],
+          qbExpenseId: response.Purchase.Id,
+          qbQbId: response.Purchase.Id,
+          qbEntityType: 'Expense'
+        };
+      }
+      
+      // Also update archived expenses if the synced expense is archived
+      const archivedExpenseIndex = archivedExpenses.value.findIndex(exp => exp.id === editedExpenseId.value);
+      if (archivedExpenseIndex !== -1) {
+        archivedExpenses.value[archivedExpenseIndex] = {
+          ...archivedExpenses.value[archivedExpenseIndex],
+          qbExpenseId: response.Purchase.Id,
+          qbQbId: response.Purchase.Id,
+          qbEntityType: 'Expense'
+        };
+      }
+    }
     
     // Auto-clear success message after 3 seconds
     setTimeout(() => { syncStatus.value = 'idle'; }, 3000);
@@ -1291,9 +1310,33 @@ async function handleTransferSubmit(from: string, to: string, amount: string, lo
       const errorData = await response.json();
       throw new Error(errorData.error || 'Failed to create transfer');
     }
+    
+    const data = await response.json();
     syncStatus.value = 'success';
     displayError('Transfer created successfully!');
-    // Optionally refresh data here
+    
+    // Update the local expense with QuickBooks information
+    if (data && data.Transfer && data.Transfer.Id && localExpenseId) {
+      const expenseIndex = expenses.value.findIndex(exp => exp.id === localExpenseId);
+      if (expenseIndex !== -1) {
+        expenses.value[expenseIndex] = {
+          ...expenses.value[expenseIndex],
+          qbQbId: data.Transfer.Id,
+          qbEntityType: 'Transfer'
+        };
+      }
+      
+      // Also update archived expenses if the synced expense is archived
+      const archivedExpenseIndex = archivedExpenses.value.findIndex(exp => exp.id === localExpenseId);
+      if (archivedExpenseIndex !== -1) {
+        archivedExpenses.value[archivedExpenseIndex] = {
+          ...archivedExpenses.value[archivedExpenseIndex],
+          qbQbId: data.Transfer.Id,
+          qbEntityType: 'Transfer'
+        };
+      }
+    }
+    
     closeAddExpenseDialog();
   } catch (err: any) {
     syncStatus.value = 'error';
