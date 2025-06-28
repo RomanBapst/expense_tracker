@@ -243,6 +243,9 @@
             </div>
           </div>
           <div v-else-if="mode === 'Transfer'">
+            <div class="mb-4 p-2 bg-blue-50 border border-blue-200 rounded text-sm text-blue-700">
+              <span class="font-medium">Note:</span> Amount and description are taken from the Details tab above.
+            </div>
             <div>
               <label for="fromAccountModel" class="block text-sm font-medium text-gray-700">
                 From Account
@@ -275,21 +278,9 @@
                 :maxHeight="350"
               />
             </div>
-            <div>
-              <label for="transferAmount" class="block text-sm font-medium text-gray-700">Amount</label>
-              <input
-                type="number"
-                v-model="transferAmount"
-                id="transferAmount"
-                class="mt-1 block w-full rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                placeholder="0.00"
-                min="0"
-                step="0.01"
-              />
-            </div>
             <div class="pt-4 text-right">
               <fwb-button
-                :disabled="!transferFromAccount || !transferToAccount || !transferAmount || Number(transferAmount) <= 0 || transferFromAccount === transferToAccount"
+                :disabled="!transferFromAccount || !transferToAccount || !amountModel || Number(amountModel) <= 0 || transferFromAccount === transferToAccount"
                 @click="handleSubmitTransfer"
                 color="blue"
               >
@@ -336,6 +327,9 @@
               <div><span class="font-medium">To Account:</span> {{ qbExpenseDetails.ToAccountRef?.name || qbExpenseDetails.ToAccountRef?.value || 'N/A' }}</div>
               <div><span class="font-medium">Amount:</span> ${{ qbExpenseDetails.Amount || '0.00' }}</div>
               <div><span class="font-medium">Date:</span> {{ qbExpenseDetails.TxnDate || 'N/A' }}</div>
+              <div v-if="qbExpenseDetails.PrivateNote">
+                <span class="font-medium">Note:</span> {{ qbExpenseDetails.PrivateNote }}
+              </div>
             </template>
           </div>
         </div>
@@ -359,7 +353,7 @@ const emits = defineEmits<{
   (e: "close"): void;
   (e: "submitClicked", file: File[] | null, removedReceiptIds: number[]): void;
   (e: "qbSyncClicked", entries: { accountId: string; amount: string }[]): void;
-  (e: "submitTransfer", from: string, to: string, amount: string, localExpenseId: number | string | null): void;
+  (e: "submitTransfer", from: string, to: string, amount: string, localExpenseId: number | string | null, description: string): void;
 }>();
 
 const titleModel = defineModel("title", { default: "" });
@@ -565,10 +559,9 @@ const mode = ref<'Expense' | 'Transfer'>('Expense');
 // Transfer form state
 const transferFromAccount = ref("");
 const transferToAccount = ref("");
-const transferAmount = ref("");
 
 function handleSubmitTransfer() {
-  emits("submitTransfer", transferFromAccount.value, transferToAccount.value, transferAmount.value, props.localExpenseId);
+  emits("submitTransfer", transferFromAccount.value, transferToAccount.value, amountModel.value, props.localExpenseId, descriptionModel.value);
 }
 
 // Type guard for Transfer details

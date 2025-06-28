@@ -394,7 +394,7 @@ router.get('/qb-expense/:id/details', async (req, res) => {
 
 router.post('/createTransfer', async (req, res) => {
   try {
-    const { fromAccountId, toAccountId, amount, date, localExpenseId } = req.body;
+    const { fromAccountId, toAccountId, amount, date, localExpenseId, description } = req.body;
     const realmId = qboClient.getToken().realmId;
     if (!realmId) {
       return res.status(500).json({ error: 'No realmId in QuickBooks token' });
@@ -413,6 +413,7 @@ router.post('/createTransfer', async (req, res) => {
       TxnDate: date || new Date().toISOString().split('T')[0],
       FromAccountRef: { value: fromAccountId },
       ToAccountRef: { value: toAccountId },
+      ...(description && { PrivateNote: description }),
     };
 
     console.log('QuickBooks Transfer payload:', transferPayload);

@@ -1268,7 +1268,7 @@ async function getQbExpenseDetails(expenseId: number) {
   }
 }
 
-async function handleTransferSubmit(from: string, to: string, amount: string, localExpenseId: number | null) {
+async function handleTransferSubmit(from: string, to: string, amount: string, localExpenseId: number | null, description: string) {
   try {
     syncStatus.value = 'syncing';
     const token = await auth0.getAccessTokenSilently();
@@ -1284,6 +1284,7 @@ async function handleTransferSubmit(from: string, to: string, amount: string, lo
         amount: parseFloat(amount),
         date: new Date(date.value).toISOString().split('T')[0],
         localExpenseId: localExpenseId,
+        description: description,
       }),
     });
     if (!response.ok) {
