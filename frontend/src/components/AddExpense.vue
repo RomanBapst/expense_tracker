@@ -539,17 +539,20 @@ watch(activeTab, (newTab) => {
     // When switching to QuickBooks tab, auto-populate amounts if we have them
     const amount = parseFloat(amountModel.value) || 0;
     if (amount > 0) {
-      expenseEntries.value.forEach(entry => {
-        if (entry.accountId) {
+      // Always populate the first expense entry with the amount from Details tab
+      if (expenseEntries.value.length > 0) {
+        expenseEntries.value[0].amount = amount.toString();
+      }
+      
+      // Also populate other entries that have accounts selected
+      expenseEntries.value.forEach((entry, index) => {
+        if (index > 0 && entry.accountId) {
           entry.amount = amount.toString();
         }
       });
-      
-      // If there's only one entry and it has an account, populate it
-      if (expenseEntries.value.length === 1 && expenseEntries.value[0].accountId) {
-        expenseEntries.value[0].amount = amount.toString();
-      }
     }
+    
+    // Removed: No longer auto-populate description with title since we use both in the memo
   }
 });
 
