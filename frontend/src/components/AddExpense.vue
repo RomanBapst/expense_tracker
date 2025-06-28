@@ -119,6 +119,15 @@
           />
         </div>
         <h2 class="text-2xl font-bold mb-6">Quickbooks</h2>
+        <!-- Auto-population info -->
+        <div class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded text-sm text-blue-700">
+          <div class="flex items-center">
+            <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+            </svg>
+            <span class="text-sm font-medium">Tip: Amount from Details tab is automatically populated. If description is empty, the title will be used.</span>
+          </div>
+        </div>
         <!-- QuickBooks Connection Warning -->
         <div v-if="!qbConnected" class="mb-4 p-3 bg-yellow-100 border border-yellow-400 text-yellow-700 rounded">
           <div class="flex items-center">
@@ -230,6 +239,15 @@
                 type="button"
               >
                 + Add Expense Account
+              </button>
+              <button
+                v-if="expenseEntries.length > 1"
+                @click="distributeAmount"
+                class="mt-2 ml-2 px-3 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200 text-xs"
+                type="button"
+                :disabled="!amountModel || Number(amountModel) <= 0"
+              >
+                Distribute Amount
               </button>
             </div>
             <div class="pt-4 text-right">
@@ -372,6 +390,20 @@ const expenseEntries = ref([
   },
 ]);
 
+// Mode selection
+const modeOptions = [
+  { label: 'Expense', value: 'Expense' },
+  { label: 'Transfer', value: 'Transfer' },
+];
+const mode = ref<'Expense' | 'Transfer'>('Expense');
+
+// Transfer form state
+const transferFromAccount = ref("");
+const transferToAccount = ref("");
+
+// Tab state
+const activeTab = ref<'details' | 'quickbooks'>('details');
+
 // Add a new row
 function addExpenseEntry() {
   expenseEntries.value.push({ accountId: "", amount: "" });
@@ -471,7 +503,14 @@ function handleSyncQuickbooksClicked() {
 watch(amountModel, (newAmount) => {
   const amount = parseFloat(newAmount) || 0;
   
-  // Only auto-populate if there's exactly one expense entry with an account selected
+  // Auto-populate amount to all expense entries that have an account selected
+  expenseEntries.value.forEach(entry => {
+    if (entry.accountId) {
+      entry.amount = amount.toString();
+    }
+  });
+  
+  // If there's only one expense entry and it has an account, populate it
   if (expenseEntries.value.length === 1 && expenseEntries.value[0].accountId) {
     expenseEntries.value[0].amount = amount.toString();
   }
@@ -484,6 +523,45 @@ watch(bankAccountModel, (newPaymentAccount) => {
     if (props.qbExpenseAccounts && Array.isArray(props.qbExpenseAccounts) && props.qbExpenseAccounts.length > 0) {
       const firstAccount = props.qbExpenseAccounts[0] as { id: string; name: string };
       expenseEntries.value[0].accountId = firstAccount.id;
+      
+      // Also populate the amount if we have one
+      const amount = parseFloat(amountModel.value) || 0;
+      if (amount > 0) {
+        expenseEntries.value[0].amount = amount.toString();
+      }
+    }
+  }
+});
+
+// Watch for changes in title and description to auto-populate QuickBooks description
+watch([titleModel, descriptionModel], ([newTitle, newDescription]) => {
+  // If description is empty and we have a title, use the title as description
+  if (!newDescription && newTitle) {
+    descriptionModel.value = newTitle;
+  }
+});
+
+// Watch for tab changes to auto-populate QuickBooks data
+watch(activeTab, (newTab) => {
+  if (newTab === 'quickbooks') {
+    // When switching to QuickBooks tab, auto-populate amounts if we have them
+    const amount = parseFloat(amountModel.value) || 0;
+    if (amount > 0) {
+      expenseEntries.value.forEach(entry => {
+        if (entry.accountId) {
+          entry.amount = amount.toString();
+        }
+      });
+      
+      // If there's only one entry and it has an account, populate it
+      if (expenseEntries.value.length === 1 && expenseEntries.value[0].accountId) {
+        expenseEntries.value[0].amount = amount.toString();
+      }
+    }
+    
+    // Auto-populate description with title if description is empty
+    if (!descriptionModel.value && titleModel.value) {
+      descriptionModel.value = titleModel.value;
     }
   }
 });
@@ -549,17 +627,6 @@ function distributeAmount() {
   });
 }
 
-// Mode selection
-const modeOptions = [
-  { label: 'Expense', value: 'Expense' },
-  { label: 'Transfer', value: 'Transfer' },
-];
-const mode = ref<'Expense' | 'Transfer'>('Expense');
-
-// Transfer form state
-const transferFromAccount = ref("");
-const transferToAccount = ref("");
-
 function handleSubmitTransfer() {
   emits("submitTransfer", transferFromAccount.value, transferToAccount.value, amountModel.value, props.localExpenseId, descriptionModel.value);
 }
@@ -568,8 +635,6 @@ function handleSubmitTransfer() {
 function isTransferDetails(details: any): details is { FromAccountRef?: any, ToAccountRef?: any, Amount?: any, TxnDate?: any } {
   return details && (details.FromAccountRef || details.ToAccountRef || details.Amount || details.TxnDate);
 }
-
-const activeTab = ref<'details' | 'quickbooks'>('details');
 </script>
 
 <style>
