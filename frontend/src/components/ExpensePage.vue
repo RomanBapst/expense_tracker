@@ -73,12 +73,18 @@
         :qbPaymentAccounts="prepareBankAccounts"
         :qbExpenseAccounts="prepareExpenseAccounts"
         :qbVendors="prepareQbVendors"
+        :liabilityAccounts="prepareLiabilityAccounts"
+        :assetAccounts="prepareAssetAccounts"
+        :bankAssetAccounts="prepareBankAssetAccounts"
         :qbConnected="qbConnected"
-        :qbExpenseId="getCurrentExpenseQbId()"
+        :qbExpenseId="getCurrentExpenseQbId().qbQbId"
         :qbExpenseDetails="qbExpenseDetails"
+        :localExpenseId="editedExpenseId"
+        :qbDetailsLoading="qbDetailsLoading"
         @close="closeAddExpenseDialog"
         @submitClicked="handleAddExpense"
         @qbSyncClicked="handleQbSync"
+        @submitTransfer="handleTransferSubmit"
         :syncStatus="syncStatus"
       />
 
@@ -158,7 +164,7 @@
           <template #cell-3="{ item }">
             <div class="flex items-center">
               <span>{{ item.values[3] }}</span>
-              <span v-if="item.qbExpenseId" class="ml-2 text-green-600 text-xs" title="Synced to QuickBooks">✓ QB</span>
+              <span v-if="item.qbQbId && item.qbEntityType" class="ml-2 text-green-600 text-xs" :title="`Synced to QuickBooks as ${item.qbEntityType}`">✓ QB ({{ item.qbEntityType }})</span>
             </div>
           </template>
           <template #button1="{ item }">
@@ -210,7 +216,7 @@
           <template #cell-3="{ item }">
             <div class="flex items-center">
               <span>{{ item.values[3] }}</span>
-              <span v-if="item.qbExpenseId" class="ml-2 text-green-600 text-xs" title="Synced to QuickBooks">✓ QB</span>
+              <span v-if="item.qbQbId && item.qbEntityType" class="ml-2 text-green-600 text-xs" :title="`Synced to QuickBooks as ${item.qbEntityType}`">✓ QB ({{ item.qbEntityType }})</span>
             </div>
           </template>
           <template #button1="{ item }">
@@ -338,6 +344,10 @@ const syncStatus = ref<'idle' | 'syncing' | 'success' | 'error'>('idle');
 const qbConnected = ref(false);
 const baseUrlQbConnected = import.meta.env.VITE_APP_API_ADDR + "/api/qb/status";
 
+const baseUrlQbTransfer = import.meta.env.VITE_APP_API_ADDR + "/createTransfer";
+
+const qbDetailsLoading = ref(false);
+
 enum ColumnType {
   DEFAULT = 1,
   DATE,
@@ -394,6 +404,22 @@ const prepareQbVendors = computed(() => {
     id: el.id,
     name: el.name,
   }));
+});
+
+const prepareLiabilityAccounts = computed(() => {
+  return qbBankAccounts.value
+    .filter((el) => typeof el.type === 'string' && el.type.toLowerCase().includes('liability'))
+    .map((el) => ({ id: el.id, name: el.name, type: el.type }));
+});
+const prepareAssetAccounts = computed(() => {
+  return qbBankAccounts.value
+    .filter((el) => typeof el.type === 'string' && el.type.toLowerCase().includes('asset'))
+    .map((el) => ({ id: el.id, name: el.name, type: el.type }));
+});
+const prepareBankAssetAccounts = computed(() => {
+  return qbBankAccounts.value
+    .filter((el) => typeof el.type === 'string' && el.type.toLowerCase() === 'bank')
+    .map((el) => ({ id: el.id, name: el.name, type: el.type }));
 });
 
 function displayError(message: string) {
@@ -472,12 +498,12 @@ const onSearch = async () => {
 function closeAddExpenseDialog() {
   isEditing.value = false;
   isAdding.value = false;
-  
   // Don't reset sync status if sync is in progress
   // This allows the sync to continue in the background
   if (syncStatus.value !== 'syncing') {
     syncStatus.value = 'idle';
   }
+  qbExpenseDetails.value = null; // Clear QuickBooks details when dialog closes
 }
 
 const filteredExpenses = computed(() => {
@@ -493,7 +519,8 @@ const filteredExpenses = computed(() => {
       0,
     ],
     receipt: el.receipts.length > 0,
-    qbExpenseId: el.qbExpenseId,
+    qbQbId: el.qbQbId,
+    qbEntityType: el.qbEntityType,
   }));
 });
 
@@ -645,10 +672,10 @@ function prepareArchivedExpenses() {
   });
 }
 
-function getCurrentExpenseQbId(): string | undefined {
-  if (!editedExpenseId.value) return undefined;
+function getCurrentExpenseQbId(): { qbQbId?: string, qbEntityType?: string } {
+  if (!editedExpenseId.value) return {};
   const expense = expenses.value.find(exp => exp.id === editedExpenseId.value);
-  return expense?.qbExpenseId;
+  return { qbQbId: expense?.qbQbId, qbEntityType: expense?.qbEntityType };
 }
 
 const filteredArchivedExpenses = computed(() => {
@@ -664,7 +691,8 @@ const filteredArchivedExpenses = computed(() => {
       0,
     ],
     receipt: el.receipts.length > 0,
-    qbExpenseId: el.qbExpenseId,
+    qbQbId: el.qbQbId,
+    qbEntityType: el.qbEntityType,
   }));
 });
 
@@ -882,7 +910,6 @@ async function handleEditExpense(id: number) {
 
   scrollPosition.value = document.querySelector(".expenses-table").scrollTop;
 
-
   const expense = expenses.value.find((exp) => exp.id === id);
   if (expense !== undefined) {
     editedExpenseId.value = id;
@@ -895,10 +922,11 @@ async function handleEditExpense(id: number) {
     removeExistingReceipt.value = false;
     expenseAccount.value = String(expense.accountId);
     existingReceipts.value = expense.receipts;
-    
     // Fetch QuickBooks details if expense is synced
-    if (expense.qbExpenseId) {
+    if (expense.qbQbId && expense.qbEntityType) {
+      qbDetailsLoading.value = true;
       await getQbExpenseDetails(id);
+      qbDetailsLoading.value = false;
     } else {
       qbExpenseDetails.value = null;
     }
@@ -1206,26 +1234,69 @@ async function getQbExpenseDetails(expenseId: number) {
     const token = await auth0.getAccessTokenSilently().catch(() => {
       auth0.loginWithRedirect();
     });
-
-    const response = await fetch(`${baseUrlQbDetails}/${expenseId}/details`, {
+    const expense = expenses.value.find(exp => exp.id === expenseId);
+    if (!expense || !expense.qbQbId || !expense.qbEntityType) {
+      qbExpenseDetails.value = null;
+      return;
+    }
+    let url;
+    const realmId = null; // not needed for frontend
+    if (expense.qbEntityType === 'Expense') {
+      url = `${baseUrlQbDetails}/${expenseId}/details`;
+    } else if (expense.qbEntityType === 'Transfer') {
+      url = `${import.meta.env.VITE_APP_API_ADDR}/qb-transfer/${expenseId}/details`;
+    } else {
+      qbExpenseDetails.value = null;
+      return;
+    }
+    const response = await fetch(url, {
       headers: { Authorization: "Bearer " + token },
     });
-
     if (!response.ok) {
       if (response.status === 404) {
-        // Expense not synced to QuickBooks
         qbExpenseDetails.value = null;
         return;
       }
       const errorData = await response.json();
       throw new Error(`Error: ${response.status} - ${errorData.message}`);
     }
-
     const data = await response.json();
-    qbExpenseDetails.value = data.Purchase;
+    qbExpenseDetails.value = data.Purchase || data.Transfer;
   } catch (err) {
     console.error("Failed to fetch QuickBooks expense details:", err);
     qbExpenseDetails.value = null;
+  }
+}
+
+async function handleTransferSubmit(from: string, to: string, amount: string, localExpenseId: number | null) {
+  try {
+    syncStatus.value = 'syncing';
+    const token = await auth0.getAccessTokenSilently();
+    const response = await fetch(baseUrlQbTransfer, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer ' + token,
+      },
+      body: JSON.stringify({
+        fromAccountId: from,
+        toAccountId: to,
+        amount: parseFloat(amount),
+        date: new Date(date.value).toISOString().split('T')[0],
+        localExpenseId: localExpenseId,
+      }),
+    });
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to create transfer');
+    }
+    syncStatus.value = 'success';
+    displayError('Transfer created successfully!');
+    // Optionally refresh data here
+    closeAddExpenseDialog();
+  } catch (err: any) {
+    syncStatus.value = 'error';
+    displayError(err.message || 'Failed to create transfer');
   }
 }
 </script>

@@ -1,7 +1,7 @@
 <template>
   <div class="input-form bg-white p-6 rounded-lg shadow-md mx-auto relative">
     <!-- Sync Status Indicator in Header -->
-    <div v-if="props.syncStatus === 'syncing'" class="absolute top-2 left-2 flex items-center text-blue-600 text-sm">
+    <div v-if="syncStatus === 'syncing'" class="absolute top-2 left-2 flex items-center text-blue-600 text-sm">
       <Spinner class="w-4 h-4 mr-2" />
       <span>Syncing to QuickBooks...</span>
     </div>
@@ -12,97 +12,112 @@
       &times;
     </span>
 
-    <!-- Two Columns -->
-    <div class="w-full grid grid-cols-1 md:grid-cols-2 gap-6">
-      <!-- Left Column -->
-      <div class="space-y-4">
-        <h2 class="text-2xl font-bold mb-6">
-          {{ props.isAdding ? "Add Expense" : "Edit Expense" }}
-        </h2>
-        <div>
-          <label for="accountModel" class="block text-sm font-medium text-gray-700">
-            Account Type
-          </label>
-          <Multiselect
-            id="accountModel"
-            v-model="accountModel"
-            :options="props.accountTypes"
-            label="name"
-            valueProp="id"
-            placeholder="Select or search account type"
-            searchable
-            class="mt-1 block w-full"
-            :maxHeight="350"
-          />
-        </div>
+    <!-- Tabs -->
+    <div class="mb-6 border-b border-gray-200">
+      <nav class="-mb-px flex">
+        <button
+          class="mr-8 py-2 px-1 border-b-2 font-medium text-sm focus:outline-none"
+          :class="activeTab === 'details' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'"
+          @click="activeTab = 'details'"
+        >
+          Details
+        </button>
+        <button
+          class="py-2 px-1 border-b-2 font-medium text-sm focus:outline-none"
+          :class="activeTab === 'quickbooks' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'"
+          @click="activeTab = 'quickbooks'"
+        >
+          QuickBooks
+        </button>
+      </nav>
+    </div>
 
-        <fwb-input v-model="titleModel" label="Title" placeholder="Title" size="sm" />
-        <fwb-input
-          v-model="descriptionModel"
-          label="Description"
-          placeholder="Description"
-          size="sm"
+    <!-- Tab Content -->
+    <div v-if="activeTab === 'details'">
+      <!-- All user-editable fields (left column content) -->
+      <h2 class="text-2xl font-bold mb-6">{{ isAdding ? "Add Expense" : "Edit Expense" }}</h2>
+      <div>
+        <label for="accountModel" class="block text-sm font-medium text-gray-700">Account Type</label>
+        <Multiselect
+          v-model="accountModel"
+          :options="accountTypes"
+          label="name"
+          valueProp="id"
+          placeholder="Select or search account type"
+          searchable
+          class="mt-1 block w-full"
+          :maxHeight="350"
         />
-        <fwb-input v-model="amountModel" label="Amount" placeholder="Amount" size="sm" />
-
+      </div>
+      <fwb-input v-model="titleModel" label="Title" placeholder="Title" size="sm" />
+      <fwb-input v-model="descriptionModel" label="Description" placeholder="Description" size="sm" />
+      <fwb-input v-model="amountModel" label="Amount" placeholder="Amount" size="sm" />
+      <div>
+        <label for="date" class="block text-sm font-medium text-gray-700">Date</label>
+        <input
+          type="date"
+          v-model="dateModel"
+          id="date"
+          required
+          class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+        />
+      </div>
+      <div class="space-y-4">
         <div>
-          <label for="date" class="block text-sm font-medium text-gray-700">Date</label>
+          <label for="receipt" class="block text-sm font-medium text-gray-700">Receipt</label>
           <input
-            type="date"
-            v-model="dateModel"
-            id="date"
-            required
+            type="file"
+            multiple
+            @change="handleFileChange"
+            ref="receiptInput"
+            id="receipt"
             class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
           />
         </div>
-        <div class="space-y-4">
-          <div>
-            <label for="receipt" class="block text-sm font-medium text-gray-700"
-              >Receipt</label
+        <div v-if="visibleReceipts && visibleReceipts.length > 0" class="space-y-2">
+          <div
+            v-for="receipt in visibleReceipts as Array<{ id: number; filename: string }>"
+            :key="receipt.id"
+            class="inline-flex items-center px-2 py-1 text-sm font-medium text-blue-800 bg-blue-100 rounded"
+          >
+            {{ receipt.filename }}
+            <svg
+              @click="removeSingleReceipt(receipt.id)"
+              xmlns="http://www.w3.org/2000/svg"
+              class="h-4 w-4 ml-2 cursor-pointer hover:text-red-600"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
             >
-            <input
-              type="file"
-              multiple
-              @change="handleFileChange"
-              ref="receiptInput"
-              id="receipt"
-              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-            />
-          </div>
-
-          <div v-if="visibleReceipts && visibleReceipts.length > 0" class="space-y-2">
-            <div
-              v-for="receipt in visibleReceipts as Array<{ id: number; filename: string }>"
-              :key="receipt.id"
-              class="inline-flex items-center px-2 py-1 text-sm font-medium text-blue-800 bg-blue-100 rounded"
-            >
-              {{ receipt.filename }}
-              <svg
-                @click="removeSingleReceipt(receipt.id)"
-                xmlns="http://www.w3.org/2000/svg"
-                class="h-4 w-4 ml-2 cursor-pointer hover:text-red-600"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
-            </div>
-          </div>
-
-          <div class="text-right pt-4">
-            <fwb-button @click="handleSubmitClicked" color="green"> Submit </fwb-button>
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
           </div>
         </div>
+        <div class="text-right pt-4">
+          <fwb-button @click="handleSubmitClicked" color="green"> Submit </fwb-button>
+        </div>
       </div>
-
-      <!-- Right Column -->
-      <div>
+    </div>
+    <div v-else-if="activeTab === 'quickbooks'">
+      <!-- QuickBooks Tab Content -->
+      <div v-if="!qbExpenseId">
+        <!-- Mode Selector: show if not synced -->
+        <div class="mb-6">
+          <label class="block text-sm font-medium text-gray-700 mb-1">QuickBooks Action</label>
+          <Multiselect
+            v-model="mode"
+            :options="modeOptions"
+            label="label"
+            valueProp="value"
+            placeholder="Select action"
+            class="w-64"
+          />
+        </div>
         <h2 class="text-2xl font-bold mb-6">Quickbooks</h2>
         <!-- QuickBooks Connection Warning -->
         <div v-if="!qbConnected" class="mb-4 p-3 bg-yellow-100 border border-yellow-400 text-yellow-700 rounded">
@@ -113,9 +128,186 @@
             <span class="text-sm font-medium">QuickBooks is not connected. Please connect to use sync features.</span>
           </div>
         </div>
-        
+        <!-- QuickBooks selectors, sync button, etc. -->
+        <div v-if="!qbExpenseId">
+          <div v-if="mode === 'Expense'">
+            <div>
+              <label for="bankAccountModel" class="block text-sm font-medium text-gray-700">
+                Payment Account
+              </label>
+              <Multiselect
+                id="bankAccountModel"
+                v-model="bankAccountModel"
+                :options="qbPaymentAccounts || []"
+                label="name"
+                valueProp="id"
+                placeholder="Select or search payment account"
+                searchable
+                class="mt-1 block w-full"
+                :maxHeight="350"
+              />
+            </div>
+            <div>
+              <label for="vendorModel" class="block text-sm font-medium text-gray-700">
+                Vendor
+              </label>
+              <Multiselect
+                id="vendorModel"
+                v-model="vendorModel"
+                :options="qbVendors"
+                label="name"
+                valueProp="id"
+                placeholder="Select or search vendor"
+                searchable
+                class="mt-1 block w-full"
+                :maxHeight="350"
+              />
+            </div>
+            <div>
+              <div
+                v-for="(entry, index) in expenseEntries"
+                :key="index"
+                class="flex items-end gap-4 mb-4"
+              >
+                <!-- Expense Account Dropdown -->
+                <div class="w-2/3">
+                  <label
+                    :for="'expenseAccountModel-' + index"
+                    class="block text-sm font-medium text-gray-700"
+                  >
+                    Expense Account
+                  </label>
+                  <Multiselect
+                    :id="'expenseAccountModel-' + index"
+                    v-model="entry.accountId"
+                    :options="qbExpenseAccounts"
+                    label="name"
+                    valueProp="id"
+                    placeholder="Select or search expense account"
+                    searchable
+                    class="mt-1 block w-full"
+                    :maxHeight="800"
+                  />
+                </div>
+
+                <!-- Credit Amount Input -->
+                <div class="w-1/3">
+                  <label
+                    :for="'creditAmount-' + index"
+                    class="block text-sm font-medium text-gray-700"
+                  >
+                    Amount
+                  </label>
+                  <input
+                    type="number"
+                    v-model="entry.amount"
+                    :id="'creditAmount-' + index"
+                    class="mt-1 block w-full rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                    placeholder="0.00"
+                    min="0"
+                    step="0.01"
+                  />
+                </div>
+                <div
+                  :class="[
+                    expenseEntries.length > 1 ? 'opacity-100' : 'opacity-0',
+                    'transition-opacity duration-200'
+                  ]"
+                >
+                  <button
+                    v-if="expenseEntries.length > 1"
+                    @click="removeExpenseEntry(index)"
+                    class="text-red-500 hover:text-red-700 text-lg font-bold"
+                    title="Remove entry"
+                  >
+                    &times;
+                  </button>
+                </div>
+              </div>
+              <button
+                @click="addExpenseEntry"
+                class="mt-2 px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 text-xs"
+                type="button"
+              >
+                + Add Expense Account
+              </button>
+            </div>
+            <div class="pt-4 text-right">
+              <fwb-button
+                :disabled="expenseEntries.length === 0 || expenseEntries.some(e => !e.accountId || !e.amount)"
+                @click="handleSyncQuickbooksClicked"
+                color="blue"
+              >
+                Sync to QuickBooks
+              </fwb-button>
+            </div>
+          </div>
+          <div v-else-if="mode === 'Transfer'">
+            <div>
+              <label for="fromAccountModel" class="block text-sm font-medium text-gray-700">
+                From Account
+              </label>
+              <Multiselect
+                id="fromAccountModel"
+                v-model="transferFromAccount"
+                :options="(bankAssetAccounts || []).filter(acc => acc.id !== transferToAccount)"
+                label="name"
+                valueProp="id"
+                placeholder="Select or search bank account"
+                searchable
+                class="mt-1 block w-full"
+                :maxHeight="350"
+              />
+            </div>
+            <div>
+              <label for="toAccountModel" class="block text-sm font-medium text-gray-700">
+                To Account
+              </label>
+              <Multiselect
+                id="toAccountModel"
+                v-model="transferToAccount"
+                :options="[...(assetAccounts || []), ...(liabilityAccounts || [])].filter(acc => acc.id !== transferFromAccount)"
+                label="name"
+                valueProp="id"
+                placeholder="Select or search account"
+                searchable
+                class="mt-1 block w-full"
+                :maxHeight="350"
+              />
+            </div>
+            <div>
+              <label for="transferAmount" class="block text-sm font-medium text-gray-700">Amount</label>
+              <input
+                type="number"
+                v-model="transferAmount"
+                id="transferAmount"
+                class="mt-1 block w-full rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                placeholder="0.00"
+                min="0"
+                step="0.01"
+              />
+            </div>
+            <div class="pt-4 text-right">
+              <fwb-button
+                :disabled="!transferFromAccount || !transferToAccount || !transferAmount || Number(transferAmount) <= 0 || transferFromAccount === transferToAccount"
+                @click="handleSubmitTransfer"
+                color="blue"
+              >
+                Sync to QuickBooks
+              </fwb-button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div v-else>
         <!-- QuickBooks Synced Data Display -->
-        <div v-if="props.qbExpenseDetails" class="mb-4 p-3 bg-green-50 border border-green-200 rounded">
+        <div v-if="qbExpenseId && qbDetailsLoading" class="flex justify-center items-center py-8">
+          <Spinner class="w-8 h-8 text-blue-600" />
+        </div>
+        <div v-else-if="qbExpenseId && !qbExpenseDetails" class="flex justify-center items-center py-8">
+          <Spinner class="w-8 h-8 text-blue-600" />
+        </div>
+        <div v-else-if="qbExpenseDetails" class="mb-4 p-3 bg-green-50 border border-green-200 rounded">
           <div class="flex items-center mb-2">
             <svg class="w-5 h-5 mr-2 text-green-600" fill="currentColor" viewBox="0 0 20 20">
               <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
@@ -123,166 +315,29 @@
             <span class="text-sm font-medium text-green-800">QuickBooks Synced Data</span>
           </div>
           <div class="text-sm text-green-700 space-y-1">
-            <div><span class="font-medium">Payment Account:</span> {{ props.qbExpenseDetails.AccountRef?.name || 'N/A' }}</div>
-            <div><span class="font-medium">Vendor:</span> {{ props.qbExpenseDetails.EntityRef?.name || 'N/A' }}</div>
-            <div><span class="font-medium">Payment Type:</span> {{ props.qbExpenseDetails.PaymentType || 'N/A' }}</div>
-            <div v-if="props.qbExpenseDetails.Line && props.qbExpenseDetails.Line.length > 0">
-              <span class="font-medium">Expense Accounts:</span>
-              <ul class="ml-4 mt-1">
-                <li v-for="(line, index) in props.qbExpenseDetails.Line" :key="index" class="text-xs">
-                  {{ line.AccountBasedExpenseLineDetail?.AccountRef?.name || 'N/A' }}: ${{ line.Amount?.toFixed(2) || '0.00' }}
-                </li>
-              </ul>
-            </div>
-            <div v-if="props.qbExpenseDetails.PrivateNote">
-              <span class="font-medium">Note:</span> {{ props.qbExpenseDetails.PrivateNote }}
-            </div>
+            <template v-if="qbExpenseDetails.Line">
+              <div><span class="font-medium">Payment Account:</span> {{ qbExpenseDetails.AccountRef?.name || 'N/A' }}</div>
+              <div><span class="font-medium">Vendor:</span> {{ qbExpenseDetails.EntityRef?.name || 'N/A' }}</div>
+              <div><span class="font-medium">Payment Type:</span> {{ qbExpenseDetails.PaymentType || 'N/A' }}</div>
+              <div v-if="qbExpenseDetails.Line && qbExpenseDetails.Line.length > 0">
+                <span class="font-medium">Expense Accounts:</span>
+                <ul class="ml-4 mt-1">
+                  <li v-for="(line, index) in qbExpenseDetails.Line" :key="index" class="text-xs">
+                    {{ line.AccountBasedExpenseLineDetail?.AccountRef?.name || 'N/A' }}: ${{ line.Amount?.toFixed(2) || '0.00' }}
+                  </li>
+                </ul>
+              </div>
+              <div v-if="qbExpenseDetails.PrivateNote">
+                <span class="font-medium">Note:</span> {{ qbExpenseDetails.PrivateNote }}
+              </div>
+            </template>
+            <template v-else>
+              <div><span class="font-medium">From Account:</span> {{ qbExpenseDetails.FromAccountRef?.name || qbExpenseDetails.FromAccountRef?.value || 'N/A' }}</div>
+              <div><span class="font-medium">To Account:</span> {{ qbExpenseDetails.ToAccountRef?.name || qbExpenseDetails.ToAccountRef?.value || 'N/A' }}</div>
+              <div><span class="font-medium">Amount:</span> ${{ qbExpenseDetails.Amount || '0.00' }}</div>
+              <div><span class="font-medium">Date:</span> {{ qbExpenseDetails.TxnDate || 'N/A' }}</div>
+            </template>
           </div>
-        </div>
-        <div>
-          <label for="bankAccountModel" class="block text-sm font-medium text-gray-700">
-            Payment Account
-          </label>
-          <Multiselect
-            id="bankAccountModel"
-            v-model="bankAccountModel"
-            :options="qbPaymentAccounts"
-            label="name"
-            valueProp="id"
-            placeholder="Select or search payment account"
-            searchable
-            class="mt-1 block w-full"
-            :maxHeight="350"
-          />
-        </div>
-        <div>
-          <label for="vendorModel" class="block text-sm font-medium text-gray-700">
-            Vendor
-          </label>
-          <Multiselect
-            id="vendorModel"
-            v-model="vendorModel"
-            :options="qbVendors"
-            label="name"
-            valueProp="id"
-            placeholder="Select or search vendor"
-            searchable
-            class="mt-1 block w-full"
-            :maxHeight="350"
-          />
-        </div>
-        <div>
-          <div
-            v-for="(entry, index) in expenseEntries"
-            :key="index"
-            class="flex items-end gap-4 mb-4"
-          >
-            <!-- Expense Account Dropdown -->
-            <div class="w-2/3">
-              <label
-                :for="'expenseAccountModel-' + index"
-                class="block text-sm font-medium text-gray-700"
-              >
-                Expense Account
-              </label>
-              <Multiselect
-                :id="'expenseAccountModel-' + index"
-                v-model="entry.accountId"
-                :options="qbExpenseAccounts"
-                label="name"
-                valueProp="id"
-                placeholder="Select or search expense account"
-                searchable
-                class="mt-1 block w-full"
-                :maxHeight="800"
-              />
-            </div>
-
-            <!-- Credit Amount Input -->
-            <div class="w-1/3">
-              <label
-                :for="'creditAmount-' + index"
-                class="block text-sm font-medium text-gray-700"
-              >
-                Amount
-              </label>
-              <input
-                type="number"
-                v-model="entry.amount"
-                :id="'creditAmount-' + index"
-                class="mt-1 block w-full rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                placeholder="0.00"
-                min="0"
-                step="0.01"
-              />
-            </div>
-            <div
-              :class="[
-                expenseEntries.length > 1 ? 'opacity-100' : 'opacity-0',
-                'w-1/5 flex items-center justify-center h-full pt-5',
-              ]"
-            >
-              <button
-                type="button"
-                @click="removeExpenseEntry(index)"
-                class="text-red-500 hover:text-red-700 text-lg"
-                title="Remove row"
-              >
-                &times;
-              </button>
-            </div>
-          </div>
-
-          <!-- Add Button -->
-          <button
-            type="button"
-            @click="addExpenseEntry"
-            class="text-sm text-indigo-600 hover:text-indigo-900"
-          >
-            + Add another account
-          </button>
-          
-          <!-- Distribute Amount Button -->
-          <button
-            type="button"
-            @click="distributeAmount"
-            class="ml-4 text-sm text-blue-600 hover:text-blue-900"
-            :disabled="!amountModel || parseFloat(amountModel) <= 0"
-          >
-            Distribute Amount
-          </button>
-        </div>
-        
-        <!-- Total Amount Display -->
-        <div class="mt-2 text-sm text-gray-600">
-          <span class="font-medium">QuickBooks Total:</span> 
-          <span :class="[
-            'ml-1',
-            qbTotalAmount === parseFloat(amountModel) ? 'text-green-600' : 'text-orange-600'
-          ]">
-            ${{ qbTotalAmount.toFixed(2) }}
-          </span>
-          <span v-if="qbTotalAmount !== parseFloat(amountModel)" class="ml-2 text-xs text-orange-600">
-            (Main amount: ${{ parseFloat(amountModel || '0').toFixed(2) }})
-          </span>
-        </div>
-        <div class="text-right pt-4">
-          <!-- Show sync status for existing expenses -->
-          <div v-if="!props.isAdding && props.qbExpenseId" class="mb-2 text-green-600 text-sm">
-            ✓ Already synced to QuickBooks
-          </div>
-          <fwb-button 
-            v-if="!props.isAdding"
-            @click="handleSyncQuickbooksClicked" 
-            color="green" 
-            :disabled="props.syncStatus === 'syncing' || !props.qbConnected || !!props.qbExpenseId"
-            :title="!props.qbConnected ? 'QuickBooks must be connected to sync' : props.qbExpenseId ? 'Already synced' : ''"
-          > 
-            {{ props.qbExpenseId ? 'Already Synced' : 'Sync' }}
-          </fwb-button>
-          <Spinner v-if="props.syncStatus === 'syncing'" class="inline-block w-5 h-5 ml-2 align-middle text-green-600" />
-          <span v-else-if="props.syncStatus === 'success'" class="text-green-600 ml-2">✔️</span>
-          <span v-else-if="props.syncStatus === 'error'" class="text-red-600 ml-2">❌</span>
         </div>
       </div>
     </div>
@@ -290,9 +345,8 @@
 </template>
 
 <script setup lang="ts">
-import { defineModel, defineEmits, ref } from "vue";
+import { defineModel, defineEmits, ref, computed, watch } from "vue";
 import { FwbInput, FwbButton, FwbNavbarCollapse } from "flowbite-vue";
-import { computed, watch } from "vue";
 import { exp } from "mathjs";
 import Spinner from "./SpinnerComponent.vue";
 import Multiselect from '@vueform/multiselect';
@@ -305,6 +359,7 @@ const emits = defineEmits<{
   (e: "close"): void;
   (e: "submitClicked", file: File[] | null, removedReceiptIds: number[]): void;
   (e: "qbSyncClicked", entries: { accountId: string; amount: string }[]): void;
+  (e: "submitTransfer", from: string, to: string, amount: string, localExpenseId: number | string | null): void;
 }>();
 
 const titleModel = defineModel("title", { default: "" });
@@ -336,7 +391,10 @@ const props = defineProps({
   isAdding: Boolean,
   accountTypes: Array,
   existingReceipts: Array,
-  qbPaymentAccounts: Array,
+  qbPaymentAccounts: {
+    type: Array as () => Array<{ id: string; name: string }>,
+    default: () => [],
+  },
   qbExpenseAccounts: Array,
   qbVendors: Array,
   syncStatus: {
@@ -353,6 +411,26 @@ const props = defineProps({
   },
   qbExpenseDetails: {
     type: Object,
+    default: null,
+  },
+  qbDetailsLoading: {
+    type: Boolean,
+    default: false,
+  },
+  liabilityAccounts: {
+    type: Array as () => Array<{ id: string; name: string; type: string }>,
+    default: () => [],
+  },
+  assetAccounts: {
+    type: Array as () => Array<{ id: string; name: string; type: string }>,
+    default: () => [],
+  },
+  bankAssetAccounts: {
+    type: Array as () => Array<{ id: string; name: string; type: string }>,
+    default: () => [],
+  },
+  localExpenseId: {
+    type: [Number, String],
     default: null,
   },
 });
@@ -476,6 +554,29 @@ function distributeAmount() {
     }
   });
 }
+
+// Mode selection
+const modeOptions = [
+  { label: 'Expense', value: 'Expense' },
+  { label: 'Transfer', value: 'Transfer' },
+];
+const mode = ref<'Expense' | 'Transfer'>('Expense');
+
+// Transfer form state
+const transferFromAccount = ref("");
+const transferToAccount = ref("");
+const transferAmount = ref("");
+
+function handleSubmitTransfer() {
+  emits("submitTransfer", transferFromAccount.value, transferToAccount.value, transferAmount.value, props.localExpenseId);
+}
+
+// Type guard for Transfer details
+function isTransferDetails(details: any): details is { FromAccountRef?: any, ToAccountRef?: any, Amount?: any, TxnDate?: any } {
+  return details && (details.FromAccountRef || details.ToAccountRef || details.Amount || details.TxnDate);
+}
+
+const activeTab = ref<'details' | 'quickbooks'>('details');
 </script>
 
 <style>

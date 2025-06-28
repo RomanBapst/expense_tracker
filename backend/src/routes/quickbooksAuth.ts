@@ -323,7 +323,11 @@ router.post('/createExpense', async (req, res) => {
     if (localExpenseId && qbExpenseId) {
       await prisma.expense.update({
         where: { id: Number(localExpenseId) },
-        data: { qbExpenseId: String(qbExpenseId) },
+        data: {
+          qbExpenseId: String(qbExpenseId),
+          qbQbId: String(qbExpenseId),
+          qbEntityType: 'Expense',
+        },
       });
     }
 
@@ -385,6 +389,86 @@ router.get('/qb-expense/:id/details', async (req, res) => {
   } catch (err) {
     console.error('Failed to fetch QuickBooks expense details:', err);
     res.status(500).json({ error: 'Failed to fetch QuickBooks expense details' });
+  }
+});
+
+router.post('/createTransfer', async (req, res) => {
+  try {
+    const { fromAccountId, toAccountId, amount, date, localExpenseId } = req.body;
+    const realmId = qboClient.getToken().realmId;
+    if (!realmId) {
+      return res.status(500).json({ error: 'No realmId in QuickBooks token' });
+    }
+
+    const baseUrl =
+      qboClient.environment === 'sandbox'
+        ? OAuthClient.environment.sandbox
+        : OAuthClient.environment.production;
+
+    const url = `${baseUrl}v3/company/${realmId}/transfer`;
+
+    // Build the Transfer payload according to QuickBooks API
+    const transferPayload = {
+      Amount: parseFloat(amount),
+      TxnDate: date || new Date().toISOString().split('T')[0],
+      FromAccountRef: { value: fromAccountId },
+      ToAccountRef: { value: toAccountId },
+    };
+
+    console.log('QuickBooks Transfer payload:', transferPayload);
+
+    const response = await qboClient.makeApiCall({
+      url,
+      method: 'POST',
+      body: transferPayload,
+    });
+
+    // Extract the QuickBooks transfer id from the response
+    const qbTransferId = response.json?.Transfer?.Id;
+
+    // If we have both a local expense id and a QuickBooks id, update the local record
+    if (localExpenseId && qbTransferId) {
+      await prisma.expense.update({
+        where: { id: Number(localExpenseId) },
+        data: {
+          qbQbId: String(qbTransferId),
+          qbEntityType: 'Transfer',
+        },
+      });
+    }
+
+    return res.json(response.json);
+  } catch (err) {
+    console.error('QuickBooks Transfer API error:', err.response?.body || err.message || err);
+    return res.status(400).json({ error: err.response?.body || err.message || 'Bad Request' });
+  }
+});
+
+// Endpoint to fetch QuickBooks transfer details
+router.get('/qb-transfer/:id/details', async (req, res) => {
+  try {
+    const expenseId = Number(req.params.id);
+    // Get the expense to find its qbQbId
+    const expense = await prisma.expense.findUnique({
+      where: { id: expenseId },
+      select: { qbQbId: true }
+    });
+    if (!expense?.qbQbId) {
+      return res.status(404).json({ error: 'Transfer not synced to QuickBooks' });
+    }
+    const realmId = qboClient.getToken().realmId;
+    if (!realmId) {
+      return res.status(500).json({ error: 'No realmId in QuickBooks token' });
+    }
+    const baseUrl = qboClient.environment === 'sandbox'
+      ? OAuthClient.environment.sandbox
+      : OAuthClient.environment.production;
+    const url = `${baseUrl}v3/company/${realmId}/transfer/${expense.qbQbId}`;
+    const response = await qboClient.makeApiCall({ url });
+    res.json(response.json);
+  } catch (err) {
+    console.error('Failed to fetch QuickBooks transfer details:', err);
+    res.status(500).json({ error: 'Failed to fetch QuickBooks transfer details' });
   }
 });
 
