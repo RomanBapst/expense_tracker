@@ -1113,7 +1113,7 @@ async function handleQbSync(expenseEntries: { accountId: string; amount: string 
       vendorId: selectedVendorId.value,
       accountId: selectedBankAccountId.value,
       expenseAccountIds: expenseEntries.map(e => e.accountId),
-      amounts: expenseEntries.map(e => e.amount),
+      amounts: expenseEntries.map(e => parseFloat(e.amount) || 0),
       privateNote: description.value,
       paymentType: 'Cash',
     });
@@ -1126,6 +1126,7 @@ async function handleQbSync(expenseEntries: { accountId: string; amount: string 
 
     const response = await postQbExpense(payloadWithLocalId);
     syncStatus.value = 'success';
+    displayError('Expense synced to QuickBooks successfully!');
     
     // Update the local expense with QuickBooks information
     if (response && response.Purchase && response.Purchase.Id) {
@@ -1151,13 +1152,22 @@ async function handleQbSync(expenseEntries: { accountId: string; amount: string 
       }
     }
     
-    // Auto-clear success message after 3 seconds
-    setTimeout(() => { syncStatus.value = 'idle'; }, 3000);
+    // Auto-clear success message after 3 seconds and close the dialog
+    setTimeout(() => { 
+      syncStatus.value = 'idle'; 
+      closeAddExpenseDialog(); // Close the dialog after successful sync
+    }, 3000);
   } catch (err) {
     syncStatus.value = 'error';
     // Auto-clear error message after 5 seconds
     setTimeout(() => { syncStatus.value = 'idle'; }, 5000);
+    console.error('QuickBooks sync error:', err);
     displayError('Failed to sync with QuickBooks');
+  } finally {
+    // Ensure sync status is reset if something unexpected happens
+    if (syncStatus.value === 'syncing') {
+      setTimeout(() => { syncStatus.value = 'idle'; }, 10000);
+    }
   }
 }
 
@@ -1351,10 +1361,20 @@ async function handleTransferSubmit(from: string, to: string, amount: string, lo
       }
     }
     
-    closeAddExpenseDialog();
+    // Auto-clear success message after 3 seconds and close the dialog
+    setTimeout(() => { 
+      syncStatus.value = 'idle'; 
+      closeAddExpenseDialog(); // Close the dialog after successful sync
+    }, 3000);
   } catch (err: any) {
     syncStatus.value = 'error';
+    console.error('QuickBooks transfer error:', err);
     displayError(err.message || 'Failed to create transfer');
+  } finally {
+    // Ensure sync status is reset if something unexpected happens
+    if (syncStatus.value === 'syncing') {
+      setTimeout(() => { syncStatus.value = 'idle'; }, 10000);
+    }
   }
 }
 </script>
