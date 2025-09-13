@@ -276,6 +276,7 @@ import { isAdmin, getIsAdmin } from "@/utils/authUtils";
 
 import ErrorPopup from "./ErrorPopup.vue";
 import AddQuickbooksExpense from "./AddQuickbooksExpense.vue";
+import { postQbExpense } from "@/expenses/quickbooks/quickbooks";
 
 const router = useRouter();
 const route = useRoute();
@@ -331,7 +332,6 @@ const qbBankAccounts = ref<QBAccount[]>([]);
 const baseUrlQbAccounts = import.meta.env.VITE_APP_API_ADDR + "/getAccounts";
 const qbVendors = ref<QBVendor[]>([]);
 const baseUrlQbVendors = import.meta.env.VITE_APP_API_ADDR + "/getVendors";
-const baseUrlQbExpense = import.meta.env.VITE_APP_API_ADDR + "/createExpense";
 
 // QuickBooks details for synced expenses
 const qbExpenseDetails = ref<QBExpenseDetails | null>(null);
@@ -1064,40 +1064,6 @@ async function getQbVendors() {
     console.log(err.message);
   }
 }
-async function postQbExpense(payload: Any) {
-  try {
-    const token = await auth0.getAccessTokenSilently().catch(() => {
-      auth0.loginWithRedirect();
-    });
-
-    const response = await fetch(baseUrlQbExpense, {
-      method: "POST",
-      headers: {
-        Authorization: "Bearer " + token,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      
-      // Handle 409 Conflict - expense already synced
-      if (response.status === 409) {
-        const entityType = errorData.details?.qbEntityType || 'QuickBooks';
-        throw new Error(`This expense is already synced to ${entityType} (ID: ${errorData.details?.qbQbId || errorData.details?.qbExpenseId})`);
-      }
-      
-      throw new Error(`Error: ${response.status} - ${errorData.error || errorData.message}`);
-    }
-
-    const data = await response.json();
-    return data;
-  } catch (err) {
-    console.log(err.message);
-    throw err;
-  }
-}
 
 async function handleQbSync(expenseEntries: { accountId: string; amount: string }[]) {
   syncStatus.value = 'syncing';
@@ -1124,7 +1090,10 @@ async function handleQbSync(expenseEntries: { accountId: string; amount: string 
       localExpenseId: editedExpenseId.value
     };
 
-    const response = await postQbExpense(payloadWithLocalId);
+    const token = await auth0.getAccessTokenSilently().catch(() => {
+      auth0.loginWithRedirect();
+    });
+    const response = await postQbExpense(payloadWithLocalId, token);
     syncStatus.value = 'success';
     displayError('Expense synced to QuickBooks successfully!');
     
