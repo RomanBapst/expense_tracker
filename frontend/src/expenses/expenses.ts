@@ -102,6 +102,7 @@ export function createExpensePayload(args: {
       type: 'Vendor',
       value: args.vendorId
     },
+    GlobalTaxCalculation: args.taxCodeId ? 'TaxInclusive' : 'NotApplicable',
     Line: lines,
     ...(args.privateNote && { PrivateNote: args.privateNote })
   };
