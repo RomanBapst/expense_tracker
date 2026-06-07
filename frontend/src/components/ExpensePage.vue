@@ -335,7 +335,7 @@ const baseUrlQbAccounts = import.meta.env.VITE_APP_API_ADDR + "/getAccounts";
 const qbVendors = ref<QBVendor[]>([]);
 const baseUrlQbVendors = import.meta.env.VITE_APP_API_ADDR + "/getVendors";
 
-const qbTaxCodes = ref<{ id: string; name: string }[]>([]);
+const qbTaxCodes = ref<{ id: string; name: string; ratePercent?: number; taxRateRefId?: string }[]>([]);
 
 // QuickBooks details for synced expenses
 const qbExpenseDetails = ref<QBExpenseDetails | null>(null);
@@ -1090,7 +1090,12 @@ async function getQbTaxCodes() {
     if (!response.ok) return;
 
     const data = await response.json();
-    qbTaxCodes.value = data.map((el: any) => ({ id: el.Id, name: el.Name }));
+    qbTaxCodes.value = data.map((el: any) => ({
+      id: el.Id,
+      name: el.Name,
+      ratePercent: el.RatePercent ?? undefined,
+      taxRateRefId: el.TaxRateRefId ?? undefined,
+    }));
   } catch (err) {
     console.log("Failed to fetch tax codes:", err);
   }
@@ -1104,6 +1109,9 @@ async function handleQbSync(expenseEntries: { accountId: string; amount: string 
       throw new Error('Cannot sync: No expense ID available');
     }
 
+    // Resolve the selected tax code's rate so we can do tax-inclusive math
+    const selectedTaxCode = qbTaxCodes.value.find(tc => tc.id === taxCodeId);
+
     // Prepare payload for QB sync
     const payload = createExpensePayload({
       date: new Date(date.value).toISOString().split('T')[0],
@@ -1114,6 +1122,8 @@ async function handleQbSync(expenseEntries: { accountId: string; amount: string 
       privateNote: `${title.value}${description.value ? `, ${description.value}` : ''}`,
       paymentType: 'Cash',
       taxCodeId: taxCodeId || undefined,
+      taxRatePercent: selectedTaxCode?.ratePercent,
+      taxRateRefId: selectedTaxCode?.taxRateRefId,
     });
 
     // Add the local expense ID to the payload

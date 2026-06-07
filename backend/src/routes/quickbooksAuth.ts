@@ -271,29 +271,51 @@ router.get('/getTaxCodes', async (req, res) => {
         ? OAuthClient.environment.sandbox
         : OAuthClient.environment.production;
 
-    const query = `select * from TaxCode`;
-    const encodedQuery = encodeURIComponent(query);
-    const url = `${baseUrl}v3/company/${companyID}/query?query=${encodedQuery}`;
+    const runQuery = async (q: string) => {
+      const url = `${baseUrl}v3/company/${companyID}/query?query=${encodeURIComponent(q)}`;
+      const r = await qboClient.makeApiCall({ url });
+      return r.json.QueryResponse;
+    };
 
-    const response = await qboClient.makeApiCall({ url });
-    const allCodes = response.json.QueryResponse.TaxCode || [];
+    const allCodes = (await runQuery('select * from TaxCode')).TaxCode || [];
+    const allRates = (await runQuery('select * from TaxRate')).TaxRate || [];
+
+    // Map TaxRate Id -> percent (RateValue), so we can resolve a code's purchase rate.
+    const rateById: Record<string, number> = {};
+    for (const r of allRates) {
+      rateById[r.Id] = Number(r.RateValue);
+    }
+
+    const activeCodes = allCodes.filter((c: any) => c.Active !== false);
+
+    // Build a clean shape that includes the purchase rate so the frontend can do
+    // tax-inclusive math. The first purchase TaxRateDetail is the applicable rate.
+    const toShape = (c: any) => {
+      const detail = c.PurchaseTaxRateList?.TaxRateDetail?.[0];
+      const taxRateRefId = detail?.TaxRateRef?.value;
+      return {
+        Id: c.Id,
+        Name: c.Name,
+        TaxRateRefId: taxRateRefId,
+        RatePercent: taxRateRefId != null ? (rateById[taxRateRefId] ?? null) : null,
+      };
+    };
 
     console.log('All QB tax codes:', JSON.stringify(allCodes.map((c: any) => ({
       Id: c.Id,
       Name: c.Name,
       Active: c.Active,
       hasPurchaseRates: !!(c.PurchaseTaxRateList?.TaxRateDetail?.length),
+      ...toShape(c),
     })), null, 2));
 
-    const activeCodes = allCodes.filter((c: any) => c.Active !== false);
+    // Prefer codes that have a usable purchase rate; fall back to all active codes
+    // so the dropdown never silently empties.
+    const purchaseCodes = activeCodes
+      .filter((c: any) => c.PurchaseTaxRateList?.TaxRateDetail?.length > 0)
+      .map(toShape);
 
-    // Prefer codes that have purchase tax rates defined (applicable to expenses/cheques),
-    // but fall back to all active codes if none match — so the dropdown never silently empties.
-    const purchaseCodes = activeCodes.filter(
-      (c: any) => c.PurchaseTaxRateList?.TaxRateDetail?.length > 0
-    );
-
-    res.send(purchaseCodes.length > 0 ? purchaseCodes : activeCodes);
+    res.send(purchaseCodes.length > 0 ? purchaseCodes : activeCodes.map(toShape));
   } catch (error) {
     console.error("Error fetching tax codes:", error);
     res.status(500).send({ error: 'Failed to fetch tax codes' });
