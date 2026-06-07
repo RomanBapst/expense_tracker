@@ -75,6 +75,7 @@ export function createExpensePayload(args: {
   amounts: number[];           // same length as above
   privateNote?: string;
   paymentType?: 'Cash' | 'CreditCard';
+  hasVat?: boolean;
 }) {
   if (args.expenseAccountIds.length !== args.amounts.length) {
     throw new Error('expenseAccountIds and amounts must be the same length');
@@ -86,7 +87,8 @@ export function createExpensePayload(args: {
     AccountBasedExpenseLineDetail: {
       AccountRef: {
         value: accountId
-      }
+      },
+      ...(args.hasVat && { TaxCodeRef: { value: 'TAX' } }),
     }
   }));
 

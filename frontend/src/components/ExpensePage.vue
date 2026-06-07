@@ -1065,7 +1065,7 @@ async function getQbVendors() {
   }
 }
 
-async function handleQbSync(expenseEntries: { accountId: string; amount: string }[]) {
+async function handleQbSync(expenseEntries: { accountId: string; amount: string }[], hasVat: boolean = false) {
   syncStatus.value = 'syncing';
   try {
     // Only sync if we're editing an existing expense
@@ -1082,6 +1082,7 @@ async function handleQbSync(expenseEntries: { accountId: string; amount: string 
       amounts: expenseEntries.map(e => parseFloat(e.amount) || 0),
       privateNote: `${title.value}${description.value ? `, ${description.value}` : ''}`,
       paymentType: 'Cash',
+      hasVat,
     });
 
     // Add the local expense ID to the payload

@@ -250,6 +250,15 @@
                 Distribute Amount
               </button>
             </div>
+            <div class="mt-4 flex items-center">
+              <input
+                type="checkbox"
+                id="hasVat"
+                v-model="hasVat"
+                class="h-4 w-4 text-blue-600 border-gray-300 rounded"
+              />
+              <label for="hasVat" class="ml-2 block text-sm text-gray-700">Has VAT</label>
+            </div>
             <div class="pt-4 text-right">
               <fwb-button
                 :disabled="expenseEntries.length === 0 || expenseEntries.some(e => !e.accountId || !e.amount)"
@@ -284,9 +293,11 @@
               <label for="toAccountModel" class="block text-sm font-medium text-gray-700">
                 To Account
               </label>
+              <div v-for="(index, entry) in transferToEntries" :key="index" class="mb-2)">
+              
               <Multiselect
                 id="toAccountModel"
-                v-model="transferToAccount"
+                v-model="entry.accountId"
                 :options="[...(assetAccounts || []), ...(liabilityAccounts || [])].filter(acc => acc.id !== transferFromAccount)"
                 label="name"
                 valueProp="id"
@@ -295,6 +306,7 @@
                 class="mt-1 block w-full"
                 :maxHeight="350"
               />
+              </div>
             </div>
             <div class="pt-4 text-right">
               <fwb-button
@@ -370,7 +382,7 @@ const removeExistingReceipt = ref(false);
 const emits = defineEmits<{
   (e: "close"): void;
   (e: "submitClicked", file: File[] | null, removedReceiptIds: number[]): void;
-  (e: "qbSyncClicked", entries: { accountId: string; amount: string }[]): void;
+  (e: "qbSyncClicked", entries: { accountId: string; amount: string }[], hasVat: boolean): void;
   (e: "submitTransfer", from: string, to: string, amount: string, localExpenseId: number | string | null, description: string): void;
 }>();
 
@@ -383,7 +395,15 @@ const vendorModel = defineModel<string>("vendorId", { default: "" });
 const bankAccountModel = defineModel<string>("bankAccountId", { default: "" });
 const expenseAccountModel = defineModel<string>("expenseAccountId", { default: "" });
 
+const hasVat = ref(false);
+
 const expenseEntries = ref([
+  {
+    accountId: "",
+    amount: "",
+  },
+]);
+const transferToEntries = ref([
   {
     accountId: "",
     amount: "",
@@ -496,7 +516,7 @@ function removeSingleReceipt(receiptId: number) {
 }
 
 function handleSyncQuickbooksClicked() {
-  emits("qbSyncClicked", expenseEntries.value);
+  emits("qbSyncClicked", expenseEntries.value, hasVat.value);
 }
 
 // Watch for changes in the main amount field and auto-populate QuickBooks amounts
