@@ -8,6 +8,10 @@ node_modules
 .env.*.local
 .env.*
 *.env
+# editor backups (may contain copies of secrets)
+*~
+.env~
+*.env~
 
 # Log files
 npm-debug.log*
