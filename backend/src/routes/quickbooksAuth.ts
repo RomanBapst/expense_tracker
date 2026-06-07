@@ -276,8 +276,24 @@ router.get('/getTaxCodes', async (req, res) => {
     const url = `${baseUrl}v3/company/${companyID}/query?query=${encodedQuery}`;
 
     const response = await qboClient.makeApiCall({ url });
+    const allCodes = response.json.QueryResponse.TaxCode || [];
 
-    res.send(response.json.QueryResponse.TaxCode || []);
+    console.log('All QB tax codes:', JSON.stringify(allCodes.map((c: any) => ({
+      Id: c.Id,
+      Name: c.Name,
+      Active: c.Active,
+      hasPurchaseRates: !!(c.PurchaseTaxRateList?.TaxRateDetail?.length),
+    })), null, 2));
+
+    const activeCodes = allCodes.filter((c: any) => c.Active !== false);
+
+    // Prefer codes that have purchase tax rates defined (applicable to expenses/cheques),
+    // but fall back to all active codes if none match — so the dropdown never silently empties.
+    const purchaseCodes = activeCodes.filter(
+      (c: any) => c.PurchaseTaxRateList?.TaxRateDetail?.length > 0
+    );
+
+    res.send(purchaseCodes.length > 0 ? purchaseCodes : activeCodes);
   } catch (error) {
     console.error("Error fetching tax codes:", error);
     res.status(500).send({ error: 'Failed to fetch tax codes' });
