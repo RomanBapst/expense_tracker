@@ -262,6 +262,28 @@ router.get('/getVendors', async (req, res) => {
   }
 });
 
+router.get('/getTaxCodes', async (req, res) => {
+  try {
+    const companyID = qboClient.getToken().realmId;
+
+    const baseUrl =
+      qboClient.environment === 'sandbox'
+        ? OAuthClient.environment.sandbox
+        : OAuthClient.environment.production;
+
+    const query = `select * from TaxCode`;
+    const encodedQuery = encodeURIComponent(query);
+    const url = `${baseUrl}v3/company/${companyID}/query?query=${encodedQuery}`;
+
+    const response = await qboClient.makeApiCall({ url });
+
+    res.send(response.json.QueryResponse.TaxCode || []);
+  } catch (error) {
+    console.error("Error fetching tax codes:", error);
+    res.status(500).send({ error: 'Failed to fetch tax codes' });
+  }
+});
+
 router.get('/api/qb/status', async (req, res) => {
   try {
     const realmId = qboClient.getToken().realmId;

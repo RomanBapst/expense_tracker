@@ -250,14 +250,18 @@
                 Distribute Amount
               </button>
             </div>
-            <div class="mt-4 flex items-center">
-              <input
-                type="checkbox"
-                id="hasVat"
-                v-model="hasVat"
-                class="h-4 w-4 text-blue-600 border-gray-300 rounded"
+            <div class="mt-4">
+              <label class="block text-sm font-medium text-gray-700 mb-1">Tax Code</label>
+              <Multiselect
+                v-model="selectedTaxCodeId"
+                :options="[{ id: '', name: 'No VAT / Exempt' }, ...(props.qbTaxCodes || [])]"
+                label="name"
+                valueProp="id"
+                placeholder="No VAT / Exempt"
+                searchable
+                class="w-64"
+                :maxHeight="350"
               />
-              <label for="hasVat" class="ml-2 block text-sm text-gray-700">Has VAT</label>
             </div>
             <div class="pt-4 text-right">
               <fwb-button
@@ -382,7 +386,7 @@ const removeExistingReceipt = ref(false);
 const emits = defineEmits<{
   (e: "close"): void;
   (e: "submitClicked", file: File[] | null, removedReceiptIds: number[]): void;
-  (e: "qbSyncClicked", entries: { accountId: string; amount: string }[], hasVat: boolean): void;
+  (e: "qbSyncClicked", entries: { accountId: string; amount: string }[], taxCodeId: string): void;
   (e: "submitTransfer", from: string, to: string, amount: string, localExpenseId: number | string | null, description: string): void;
 }>();
 
@@ -395,7 +399,7 @@ const vendorModel = defineModel<string>("vendorId", { default: "" });
 const bankAccountModel = defineModel<string>("bankAccountId", { default: "" });
 const expenseAccountModel = defineModel<string>("expenseAccountId", { default: "" });
 
-const hasVat = ref(false);
+const selectedTaxCodeId = ref<string>("");
 
 const expenseEntries = ref([
   {
@@ -446,6 +450,10 @@ const props = defineProps({
   syncStatus: {
     type: String,
     default: 'idle',
+  },
+  qbTaxCodes: {
+    type: Array as () => Array<{ id: string; name: string }>,
+    default: () => [],
   },
   qbConnected: {
     type: Boolean,
@@ -516,7 +524,7 @@ function removeSingleReceipt(receiptId: number) {
 }
 
 function handleSyncQuickbooksClicked() {
-  emits("qbSyncClicked", expenseEntries.value, hasVat.value);
+  emits("qbSyncClicked", expenseEntries.value, selectedTaxCodeId.value);
 }
 
 // Watch for changes in the main amount field and auto-populate QuickBooks amounts

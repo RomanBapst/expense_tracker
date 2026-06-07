@@ -76,6 +76,7 @@
         :liabilityAccounts="prepareLiabilityAccounts"
         :assetAccounts="prepareAssetAccounts"
         :bankAssetAccounts="prepareBankAssetAccounts"
+        :qbTaxCodes="qbTaxCodes"
         :qbConnected="qbConnected"
         :qbExpenseId="getCurrentExpenseQbId().qbQbId"
         :qbExpenseDetails="qbExpenseDetails"
@@ -249,7 +250,7 @@
       </button>
     </div>
   </div>
-  <ErrorPopup :message="errorMessage" :show="showError" @close="showError = false" />
+  <ErrorPopup :message="errorMessage" :show="showError" :type="notificationType" @close="showError = false" />
 </template>
 
 <script setup lang="ts">
@@ -284,6 +285,7 @@ const auth0 = useAuth0();
 
 const showError = ref(false);
 const errorMessage = ref("");
+const notificationType = ref<'error' | 'success'>('error');
 
 const expenses = ref<Expense[]>([]);
 const archivedExpenses = ref<Expense[]>([]);
@@ -332,6 +334,8 @@ const qbBankAccounts = ref<QBAccount[]>([]);
 const baseUrlQbAccounts = import.meta.env.VITE_APP_API_ADDR + "/getAccounts";
 const qbVendors = ref<QBVendor[]>([]);
 const baseUrlQbVendors = import.meta.env.VITE_APP_API_ADDR + "/getVendors";
+
+const qbTaxCodes = ref<{ id: string; name: string }[]>([]);
 
 // QuickBooks details for synced expenses
 const qbExpenseDetails = ref<QBExpenseDetails | null>(null);
@@ -423,6 +427,13 @@ const prepareBankAssetAccounts = computed(() => {
 });
 
 function displayError(message: string) {
+  notificationType.value = 'error';
+  errorMessage.value = message;
+  showError.value = true;
+}
+
+function displaySuccess(message: string) {
+  notificationType.value = 'success';
   errorMessage.value = message;
   showError.value = true;
 }
@@ -938,6 +949,7 @@ onMounted(() => {
   getAllAccounts();
   getqbAccounts();
   getQbVendors();
+  getQbTaxCodes();
   checkIfQbConnected();
 
   // Check for stored QuickBooks callback parameters
@@ -1065,7 +1077,26 @@ async function getQbVendors() {
   }
 }
 
-async function handleQbSync(expenseEntries: { accountId: string; amount: string }[], hasVat: boolean = false) {
+async function getQbTaxCodes() {
+  try {
+    const token = await auth0.getAccessTokenSilently().catch(() => {
+      auth0.loginWithRedirect();
+    });
+
+    const response = await fetch(import.meta.env.VITE_APP_API_ADDR + "/getTaxCodes", {
+      headers: { Authorization: "Bearer " + token },
+    });
+
+    if (!response.ok) return;
+
+    const data = await response.json();
+    qbTaxCodes.value = data.map((el: any) => ({ id: el.Id, name: el.Name }));
+  } catch (err) {
+    console.log("Failed to fetch tax codes:", err);
+  }
+}
+
+async function handleQbSync(expenseEntries: { accountId: string; amount: string }[], taxCodeId: string = '') {
   syncStatus.value = 'syncing';
   try {
     // Only sync if we're editing an existing expense
@@ -1082,7 +1113,7 @@ async function handleQbSync(expenseEntries: { accountId: string; amount: string 
       amounts: expenseEntries.map(e => parseFloat(e.amount) || 0),
       privateNote: `${title.value}${description.value ? `, ${description.value}` : ''}`,
       paymentType: 'Cash',
-      hasVat,
+      taxCodeId: taxCodeId || undefined,
     });
 
     // Add the local expense ID to the payload
@@ -1096,7 +1127,7 @@ async function handleQbSync(expenseEntries: { accountId: string; amount: string 
     });
     const response = await postQbExpense(payloadWithLocalId, token);
     syncStatus.value = 'success';
-    displayError('Expense synced to QuickBooks successfully!');
+    displaySuccess('Expense synced to QuickBooks successfully!');
     
     // Update the local expense with QuickBooks information
     if (response && response.Purchase && response.Purchase.Id) {
@@ -1190,10 +1221,9 @@ async function processQuickBooksCallback(code: string, realmId: string | null, s
     const data = await response.json();
     
     if (data.success) {
-      // Refresh the connection status
       await checkIfQbConnected();
-      // Show success message
-      displayError('QuickBooks connected successfully!');
+      await Promise.all([getqbAccounts(), getQbVendors(), getQbTaxCodes()]);
+      displaySuccess('QuickBooks connected successfully!');
     } else {
       throw new Error(data.error || 'Authentication failed');
     }
@@ -1307,7 +1337,7 @@ async function handleTransferSubmit(from: string, to: string, amount: string, lo
     
     const data = await response.json();
     syncStatus.value = 'success';
-    displayError('Transfer created successfully!');
+    displaySuccess('Transfer created successfully!');
     
     // Update the local expense with QuickBooks information
     if (data && data.Transfer && data.Transfer.Id && localExpenseId) {
