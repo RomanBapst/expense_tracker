@@ -68,8 +68,11 @@ git fetch origin --prune
 echo "  -> Checking out ${BRANCH} (reset to origin/${BRANCH})..."
 git checkout -B "$BRANCH" "origin/${BRANCH}"
 
-echo "  -> Restarting docker containers..."
-docker compose -f "$COMPOSE_FILE" up -d --build
+echo "  -> Rebuilding and recreating docker containers..."
+# --force-recreate is required: production bakes source into the images (no bind
+# mounts), and `up --build` alone rebuilds images but does NOT always recreate
+# the running containers, leaving stale code live.
+docker compose -f "$COMPOSE_FILE" up -d --build --force-recreate
 
 echo "  -> Done. Running services:"
 docker compose -f "$COMPOSE_FILE" ps

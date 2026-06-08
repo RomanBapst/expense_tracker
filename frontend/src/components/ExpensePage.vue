@@ -186,6 +186,12 @@
               >Edit</fwb-button
             >
           </template>
+
+          <template #button3="{ item }">
+            <fwb-button @click="confirmDeleteId = item.id" class="bg-red-700 ml-2">
+              Delete
+            </fwb-button>
+          </template>
         </SimpleTable>
 
         <SimpleTable
@@ -250,6 +256,30 @@
       </button>
     </div>
   </div>
+  <!-- Delete confirmation modal -->
+  <div
+    v-if="confirmDeleteId !== null"
+    class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center"
+    @click.self="confirmDeleteId = null"
+  >
+    <div class="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full">
+      <h3 class="text-lg font-bold mb-2 text-gray-900">Delete expense</h3>
+      <p class="text-sm text-gray-600 mb-6">
+        Are you sure you want to delete
+        <span class="font-medium">{{ expenseToDelete?.title || 'this expense' }}</span>?
+        This action cannot be undone.
+      </p>
+      <div class="flex justify-end gap-3">
+        <fwb-button color="alternative" @click="confirmDeleteId = null">
+          Cancel
+        </fwb-button>
+        <fwb-button color="red" @click="handleDeleteExpense(confirmDeleteId)">
+          Delete
+        </fwb-button>
+      </div>
+    </div>
+  </div>
+
   <ErrorPopup :message="errorMessage" :show="showError" :type="notificationType" @close="showError = false" />
 </template>
 
@@ -329,6 +359,12 @@ const receiptViewerOpen = ref(false);
 const selectedReceipts = ref<Array<{ url: string; id: string }>>([]);
 
 const uploadingExpenseIds = ref<Set<number>>(new Set());
+
+// Id of the expense currently awaiting delete confirmation (shown in modal)
+const confirmDeleteId = ref<number | null>(null);
+const expenseToDelete = computed(() =>
+  expenses.value.find((e) => e.id === confirmDeleteId.value)
+);
 
 const qbBankAccounts = ref<QBAccount[]>([]);
 const baseUrlQbAccounts = import.meta.env.VITE_APP_API_ADDR + "/getAccounts";
@@ -834,6 +870,18 @@ async function deleteExpense(id: Number) {
     await getAllExpenses();
   } catch (err) {
     console.error("Failed to delete expense:", err.message);
+    displayError(err.message);
+  }
+}
+
+async function handleDeleteExpense(id: number) {
+  if (isAdding.value || isEditing.value) {
+    return;
+  }
+  try {
+    await deleteExpense(id);
+  } finally {
+    confirmDeleteId.value = null;
   }
 }
 
