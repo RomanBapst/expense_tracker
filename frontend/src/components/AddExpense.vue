@@ -263,6 +263,9 @@
                 :maxHeight="350"
               />
             </div>
+            <!-- TEMP DEBUG: remove after diagnosing disabled sync button -->
+            <pre class="text-left text-xs bg-yellow-50 border border-yellow-300 p-2 rounded mb-2 whitespace-pre-wrap">DEBUG entries: {{ JSON.stringify(expenseEntries.map(e => ({ accountId: e.accountId, accountIdType: typeof e.accountId, amount: e.amount, amountType: typeof e.amount }))) }}
+disabled = {{ expenseEntries.length === 0 || expenseEntries.some(e => !e.accountId || !e.amount) }}</pre>
             <div class="pt-4 text-right">
               <fwb-button
                 :disabled="expenseEntries.length === 0 || expenseEntries.some(e => !e.accountId || !e.amount)"
