@@ -265,6 +265,8 @@
             </div>
             <!-- TEMP DEBUG: remove after diagnosing disabled sync button -->
             <pre class="text-left text-xs bg-yellow-50 border border-yellow-300 p-2 rounded mb-2 whitespace-pre-wrap">DEBUG entries: {{ JSON.stringify(expenseEntries.map(e => ({ accountId: e.accountId, accountIdType: typeof e.accountId, amount: e.amount, amountType: typeof e.amount }))) }}
+expenseAccount options = {{ (qbExpenseAccounts || []).length }} | first 3 = {{ JSON.stringify((qbExpenseAccounts || []).slice(0, 3)) }}
+paymentAccount = {{ bankAccountModel }} | vendor = {{ vendorModel }}
 disabled = {{ expenseEntries.length === 0 || expenseEntries.some(e => !e.accountId || !e.amount) }}</pre>
             <div class="pt-4 text-right">
               <fwb-button
@@ -300,11 +302,9 @@ disabled = {{ expenseEntries.length === 0 || expenseEntries.some(e => !e.account
               <label for="toAccountModel" class="block text-sm font-medium text-gray-700">
                 To Account
               </label>
-              <div v-for="(index, entry) in transferToEntries" :key="index" class="mb-2)">
-              
               <Multiselect
                 id="toAccountModel"
-                v-model="entry.accountId"
+                v-model="transferToAccount"
                 :options="[...(assetAccounts || []), ...(liabilityAccounts || [])].filter(acc => acc.id !== transferFromAccount)"
                 label="name"
                 valueProp="id"
@@ -313,7 +313,6 @@ disabled = {{ expenseEntries.length === 0 || expenseEntries.some(e => !e.account
                 class="mt-1 block w-full"
                 :maxHeight="350"
               />
-              </div>
             </div>
             <div class="pt-4 text-right">
               <fwb-button
